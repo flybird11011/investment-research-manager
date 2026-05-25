@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import { Plus, Trash2, TrendingUp } from 'lucide-react'
 import { watchlistApi, newsApi } from '../lib/api'
 import { formatTime, getCategoryBadgeClass } from '../lib/utils'
 

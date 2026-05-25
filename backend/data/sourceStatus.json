@@ -2,10 +2,10 @@
   {
     "sourceName": "新浪财经-国际财经",
     "sourceUrl": "http://rss.sina.com.cn/finance/gjcj.xml",
-    "lastFetchTime": "2026-05-25T14:55:00.623Z",
+    "lastFetchTime": "2026-05-25T15:05:01.183Z",
     "lastFetchCount": 0,
-    "lastSuccessTime": "2026-05-25T14:55:00.623Z",
-    "totalFetchCount": 30,
+    "lastSuccessTime": "2026-05-25T15:05:01.183Z",
+    "totalFetchCount": 31,
     "totalNewsCount": 0,
     "updateInterval": 10,
     "isActive": true,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, RefreshCw, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { newsApi, eventsApi, aiApi } from '../lib/api'
+import { newsApi, eventsApi } from '../lib/api'
 import { formatTime, truncateText, getCategoryBadgeClass } from '../lib/utils'
 
 interface NewsItem {
@@ -15,6 +15,7 @@ interface NewsItem {
   sentiment: string | null
   sentimentScore: number | null
   publishedAt: string
+  sourceUrl?: string
 }
 
 interface EventItem {
