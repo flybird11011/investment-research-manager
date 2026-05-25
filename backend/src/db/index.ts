@@ -12,9 +12,11 @@ export const dailyBriefings = 'dailyBriefings' as const;
 // 模拟 drizzle 的 db 对象
 import * as jsonDb from './jsonDb';
 
+type TableName = 'news' | 'watchlist' | 'newsSources' | 'events' | 'reports' | 'dailyBriefings' | 'sourceStatus' | 'users';
+
 export const db = {
   select: () => ({
-    from: (table: string) => ({
+    from: (table: TableName) => ({
       where: (condition?: any) => ({
         orderBy: (order: any) => ({
           limit: (n: number) => ({
@@ -43,7 +45,7 @@ export const db = {
       then: (cb: any) => Promise.resolve(cb(jsonDb.findAll(table))),
     }),
   }),
-  insert: (table: string) => ({
+  insert: (table: TableName) => ({
     values: (data: any) => ({
       returning: () => {
         const result = jsonDb.create(table, data);
@@ -51,7 +53,7 @@ export const db = {
       },
     }),
   }),
-  update: (table: string) => ({
+  update: (table: TableName) => ({
     set: (data: any) => ({
       where: (condition: any) => {
         // 简单处理：假设 condition 是 { id: value }
@@ -61,7 +63,7 @@ export const db = {
       },
     }),
   }),
-  delete: (table: string) => ({
+  delete: (table: TableName) => ({
     where: (condition: any) => {
       const id = condition?.right || condition;
       jsonDb.remove(table, id);
