@@ -73,8 +73,8 @@ export function updateSourceStatus(
     ...status,
     ...updates,
   });
-  
-  return updated;
+
+  return updated as SourceStatus;
 }
 
 /**

@@ -145,6 +145,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         keyData: aiSummary.keyData,
         risks: aiSummary.risks,
         highlights: aiSummary.highlights,
+        summary: aiSummary.summary,
+        author: aiSummary.author,
       } : null,
     });
   } catch (error) {

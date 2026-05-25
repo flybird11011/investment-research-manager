@@ -461,7 +461,7 @@ async function fetchFromWeb(source: any) {
     });
 
     const $ = cheerio.load(response.data);
-    const results = [];
+    const results: any[] = [];
 
     // 尝试多种选择器
     const selectors = [
@@ -478,13 +478,13 @@ async function fetchFromWeb(source: any) {
     for (const selector of selectors) {
       $(selector).each((_, element) => {
         const $el = $(element);
-        
+
         // 尝试获取标题
         let title = $el.find('h3, h2, .title, a').first().text().trim();
         if (!title) {
           title = $el.find('a').first().attr('title') || $el.text().trim();
         }
-        
+
         if (!title || title.length < 10) return;
 
         // 获取链接
@@ -676,7 +676,7 @@ async function updateEvent(eventId: string, newsItem: any, relatedStocks: string
         newsCount: (existing.newsCount || 1) + 1,
         lastPublishedAt: newsItem.publishedAt,
         relatedStocks: [...new Set([...existingStocks, ...relatedStocks])],
-      });
+      } as any);
     } else {
       // 创建新事件
       create('events', {

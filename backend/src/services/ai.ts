@@ -38,6 +38,7 @@ export async function generateReportSummary(reportContent: string): Promise<{
   risks: string[];
   highlights: string[];
   summary: string;
+  author: string;
 }> {
   if (!openai) {
     console.log('⚠️ 未配置 OPENAI_API_KEY，返回模拟数据');
@@ -49,6 +50,7 @@ export async function generateReportSummary(reportContent: string): Promise<{
       risks: ['请配置 OPENAI_API_KEY'],
       highlights: ['配置后可自动生成研报摘要'],
       summary: reportContent.slice(0, 200) + '...',
+      author: '',
     };
   }
 
@@ -89,6 +91,7 @@ export async function generateReportSummary(reportContent: string): Promise<{
         risks: result.risks || [],
         highlights: result.highlights || [],
         summary: result.summary || '',
+        author: result.author || '',
       };
     }
 
@@ -101,6 +104,7 @@ export async function generateReportSummary(reportContent: string): Promise<{
       risks: [],
       highlights: [],
       summary: content.slice(0, 200),
+      author: '',
     };
   } catch (error) {
     console.error('AI 摘要生成失败:', error);

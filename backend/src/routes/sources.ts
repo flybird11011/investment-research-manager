@@ -105,7 +105,7 @@ router.post('/reset', async (req, res) => {
     // 重置默认源为启用状态
     sources.forEach((source: any) => {
       if (source.isDefault) {
-        update('newsSources', source.id, { isEnabled: true });
+        update('newsSources', source.id, { isEnabled: true } as any);
       }
     });
 

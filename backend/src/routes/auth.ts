@@ -46,7 +46,7 @@ router.post('/register', async (req, res) => {
       avatar: '',
       createdAt: new Date().toISOString(),
       lastLoginAt: null,
-    });
+    }) as any;
 
     // 返回用户信息（不含密码）
     const { password: _, ...userInfo } = user;
@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
     }
 
     const users = findAll<any>('users');
-    const user = users.find((u: any) => u.username === username);
+    const user = users.find((u: any) => u.username === username) as any;
 
     if (!user) {
       return res.status(401).json({ error: '用户名或密码错误' });
@@ -115,7 +115,7 @@ router.get('/me', async (req, res) => {
     }
 
     const users = findAll<any>('users');
-    const user = users.find((u: any) => u.username === username);
+    const user = users.find((u: any) => u.username === username) as any;
 
     if (!user) {
       return res.status(401).json({ error: '用户不存在' });
