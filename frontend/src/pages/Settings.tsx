@@ -115,9 +115,9 @@ export default function Settings() {
 
         {/* 添加表单 */}
         {showAddForm && (
-          <form onSubmit={handleAdd} className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <form onSubmit={handleAdd} className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-medium text-gray-700 mb-3">添加自定义新闻源</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">名称</label>
                 <input
@@ -125,7 +125,7 @@ export default function Settings() {
                   value={newSource.name}
                   onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
                   placeholder="如：某某财经"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                   required
                 />
               </div>
@@ -136,19 +136,19 @@ export default function Settings() {
                   value={newSource.url}
                   onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
                   placeholder="https://example.com/feed.xml"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                   required
                 />
               </div>
             </div>
             <div className="flex items-center space-x-3 mt-4">
-              <button type="submit" className="btn-primary text-sm">
+              <button type="submit" className="btn-primary text-sm flex-1 sm:flex-none">
                 确认添加
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="btn-secondary text-sm"
+                className="btn-secondary text-sm flex-1 sm:flex-none"
               >
                 取消
               </button>
@@ -157,36 +157,36 @@ export default function Settings() {
         )}
 
         {/* 新闻源列表 */}
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {sources.map((source) => (
             <div
               key={source.id}
-              className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg"
+              className="flex items-center justify-between p-2.5 sm:p-3 lg:p-4 bg-gray-50 rounded-lg"
             >
-              <div className="flex items-center space-x-3 min-w-0 flex-1">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
+              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
                   {source.type === 'rss' ? (
-                    <Rss className="w-5 h-5 text-orange-500" />
+                    <Rss className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                   ) : (
-                    <Globe className="w-5 h-5 text-blue-500" />
+                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-900">{source.name}</span>
+                    <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
                     {source.isDefault && (
                       <span className="badge badge-gray text-xs">默认</span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-md">
+                  <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
                     {source.url}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
-                {/* 启用/禁用开关 */}
-                <label className="flex items-center cursor-pointer">
+                {/* 启用/禁用开关 - 44px最小触摸区域 */}
+                <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
                   <input
                     type="checkbox"
                     checked={source.isEnabled}
@@ -199,11 +199,11 @@ export default function Settings() {
                   </span>
                 </label>
 
-                {/* 删除按钮 */}
+                {/* 删除按钮 - 44px最小触摸区域 */}
                 {!source.isDefault && (
                   <button
                     onClick={() => handleRemove(source.id)}
-                    className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

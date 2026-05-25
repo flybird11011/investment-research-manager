@@ -124,9 +124,9 @@ export default function DailyBriefing() {
             <span>正在生成简报...</span>
           </div>
         ) : briefing ? (
-          <div className="space-y-5">
+          <div className="space-y-4 sm:space-y-5">
             {/* 大盘概览 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-blue-600" />
                 <h3 className="font-semibold text-blue-800">大盘概览</h3>
@@ -140,9 +140,9 @@ export default function DailyBriefing() {
             {briefing.hotTopics && briefing.hotTopics.length > 0 && (
               <div>
                 <h3 className="font-semibold text-gray-800 mb-3">热门话题</h3>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {briefing.hotTopics.map((topic, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-3">
+                    <div key={index} className="border border-gray-200 rounded-lg p-2.5 sm:p-3">
                       <div className="flex items-start space-x-2">
                         <span className="text-lg mt-0.5">{getSentimentEmoji(topic.sentiment)}</span>
                         <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ export default function DailyBriefing() {
 
             {/* 风险提示 */}
             {briefing.riskWarnings && briefing.riskWarnings.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center space-x-2 mb-3">
                   <AlertTriangle className="w-5 h-5 text-red-600" />
                   <h3 className="font-semibold text-red-800">风险提示</h3>

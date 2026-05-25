@@ -137,10 +137,10 @@ export default function Reports() {
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
-          className="btn-primary flex items-center space-x-2"
+          className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
         >
           <Upload className="w-4 h-4" />
-          <span className="hidden sm:inline">上传研报</span>
+          <span>上传研报</span>
         </button>
       </div>
 
@@ -311,11 +311,11 @@ export default function Reports() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : reports.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
           {reports.map((report) => (
             <div key={report.id} className="card hover:shadow-md transition-shadow">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="flex items-start space-x-2.5 sm:space-x-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">

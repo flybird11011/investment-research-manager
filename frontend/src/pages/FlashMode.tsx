@@ -61,10 +61,10 @@ export default function FlashMode() {
                 {/* Mobile: vertical layout */}
                 <div className="sm:hidden space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{index + 1} · {formatTime(item.publishedAt)}</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-primary-600">{item.source}</span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">{item.category}</span>
+                    <span className="text-[11px] sm:text-xs text-gray-400">{index + 1} · {formatTime(item.publishedAt)}</span>
+                    <div className="flex items-center space-x-1.5 sm:space-x-2">
+                      <span className="text-[11px] sm:text-xs font-medium text-primary-600">{item.source}</span>
+                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[11px] sm:text-xs font-medium bg-gray-100 text-gray-600">{item.category}</span>
                     </div>
                   </div>
                   <h3 className="text-sm text-gray-900 leading-relaxed">{item.title}</h3>

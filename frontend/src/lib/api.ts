@@ -69,3 +69,12 @@ export const aiApi = {
 }
 
 export default api
+
+// 认证API
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post('/auth/login', { username, password }),
+  register: (username: string, password: string, nickname?: string) =>
+    api.post('/auth/register', { username, password, nickname }),
+  getMe: () => api.get('/auth/me'),
+};

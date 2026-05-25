@@ -103,25 +103,25 @@ export default function NewsFeed() {
       </div>
 
       {/* 搜索栏 */}
-      <form onSubmit={handleSearch} className="relative">
+      <form onSubmit={handleSearch} className="relative w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
           placeholder="搜索资讯..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base sm:text-base"
         />
       </form>
 
       {/* 分类筛选 */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 hide-scrollbar">
+      <div className="flex items-center space-x-2 overflow-x-auto pb-2 hide-scrollbar flex-nowrap">
         <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
         {categories.map((category) => (
           <button
             key={category}
             onClick={() => handleCategoryChange(category)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               selectedCategory === category
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -133,10 +133,10 @@ export default function NewsFeed() {
       </div>
 
       {/* 标签切换 */}
-      <div className="flex items-center space-x-4 border-b border-gray-200">
+      <div className="flex items-stretch border-b border-gray-200">
         <button
           onClick={() => setActiveTab('events')}
-          className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex-1 pb-3 text-sm font-medium border-b-2 transition-colors text-center ${
             activeTab === 'events'
               ? 'border-primary-600 text-primary-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -146,7 +146,7 @@ export default function NewsFeed() {
         </button>
         <button
           onClick={() => setActiveTab('news')}
-          className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex-1 pb-3 text-sm font-medium border-b-2 transition-colors text-center ${
             activeTab === 'news'
               ? 'border-primary-600 text-primary-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -162,7 +162,7 @@ export default function NewsFeed() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {activeTab === 'events' ? (
             // 聚合事件列表
             events.length > 0 ? (

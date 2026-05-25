@@ -17,6 +17,7 @@ const FILES = {
   reports: path.join(DATA_DIR, 'reports.json'),
   dailyBriefings: path.join(DATA_DIR, 'dailyBriefings.json'),
   sourceStatus: path.join(DATA_DIR, 'sourceStatus.json'),
+  users: path.join(DATA_DIR, 'users.json'),
 } as const;
 
 type TableName = keyof typeof FILES;
