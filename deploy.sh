@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# VPS 部署脚本
+# VPS 部署脚本（使用已有 Nginx）
 # 使用方法: ./deploy.sh
 
 set -e
@@ -39,10 +39,19 @@ sleep 5
 # 检查服务状态
 echo "🔍 检查服务状态..."
 if docker-compose ps | grep -q "Up"; then
-    echo "✅ 部署成功！"
+    echo "✅ 容器启动成功！"
+
+    # 配置 Nginx
     echo ""
-    echo "📱 访问地址: http://$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
-    echo "🔧 后端 API: http://$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):3001"
+    echo "📋 配置 Nginx 反向代理..."
+    echo "请手动执行以下命令："
+    echo ""
+    echo "  sudo cp nginx-site.conf /etc/nginx/sites-available/invest"
+    echo "  sudo ln -sf /etc/nginx/sites-available/invest /etc/nginx/sites-enabled/"
+    echo "  sudo nginx -t"
+    echo "  sudo systemctl reload nginx"
+    echo ""
+    echo "🌐 访问地址: http://invest.791127.xyz"
     echo ""
     echo "常用命令:"
     echo "  查看日志: docker-compose logs -f"

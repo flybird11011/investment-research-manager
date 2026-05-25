@@ -7,8 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: investment-backend
     restart: unless-stopped
+    # 仅绑定 localhost，由宿主机 Nginx 反向代理
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     volumes:
       - ./data:/app/data
     environment:
@@ -23,8 +24,9 @@ services:
       dockerfile: Dockerfile
     container_name: investment-frontend
     restart: unless-stopped
+    # 仅绑定 localhost，由宿主机 Nginx 反向代理
     ports:
-      - "80:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - backend
     networks:
@@ -33,7 +35,3 @@ services:
 networks:
   investment-network:
     driver: bridge
-
-volumes:
-  data:
-    driver: local
