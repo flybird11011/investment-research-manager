@@ -1,10 +1,11 @@
 // 语音播报工具 - 使用 Web Speech API
 
 let voicesReady = false
+let speechAwakened = false
 
 // 检查浏览器是否支持语音合成
 export function isSpeechSupported(): boolean {
-  return 'speechSynthesis' in window
+  return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
 // 获取女声（优先选择中文女声）
@@ -36,31 +37,38 @@ function getFemaleVoice(): SpeechSynthesisVoice | null {
 }
 
 // 唤醒语音引擎（Chrome 首次调用 speak 可能被静默吞掉）
-function wakeUpSpeech(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!isSpeechSupported()) {
-      resolve()
-      return
-    }
-    const u = new SpeechSynthesisUtterance('')
-    u.volume = 0 // 静音
-    u.onend = () => resolve()
-    u.onerror = () => resolve()
-    // 超时保底
-    setTimeout(resolve, 200)
-    window.speechSynthesis.speak(u)
-  })
+function wakeUpSpeech(): void {
+  if (!isSpeechSupported() || speechAwakened) return
+
+  const u = new SpeechSynthesisUtterance(' ')
+  u.volume = 0.01 // 几乎静音但不是0
+  u.rate = 10 // 最快速度
+  u.onend = () => {
+    speechAwakened = true
+    console.log('[语音] 引擎唤醒完成')
+  }
+  u.onerror = (e) => {
+    // 即使出错也标记为已尝试
+    speechAwakened = true
+    console.warn('[语音] 唤醒出错(可忽略):', e.error)
+  }
+  window.speechSynthesis.speak(u)
 }
 
 // 朗读文本
 export function speak(text: string): void {
   if (!isSpeechSupported()) {
-    console.warn('浏览器不支持语音合成')
+    console.warn('[语音] 浏览器不支持语音合成')
     return
   }
 
-  // 停止当前正在播放的语音
+  // Chrome bug: 长时间不使用后 speechSynthesis 会暂停，需要 resume
   window.speechSynthesis.cancel()
+
+  // Chrome bug workaround: resume 可能需要延迟
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume()
+  }
 
   const utterance = new SpeechSynthesisUtterance(text)
   const voice = getFemaleVoice()
@@ -68,16 +76,26 @@ export function speak(text: string): void {
   if (voice) {
     utterance.voice = voice
     utterance.lang = voice.lang
+    console.log('[语音] 使用语音:', voice.name, voice.lang)
   } else {
     utterance.lang = 'zh-CN'
+    console.log('[语音] 使用默认语音, lang=zh-CN')
   }
 
   utterance.rate = 1.0
   utterance.pitch = 1.0
   utterance.volume = 1.0
 
+  utterance.onstart = () => {
+    console.log('[语音] 开始朗读')
+  }
+
+  utterance.onend = () => {
+    console.log('[语音] 朗读结束')
+  }
+
   utterance.onerror = (e) => {
-    console.error('语音播报出错:', e)
+    console.error('[语音] 朗读出错:', e.error)
   }
 
   window.speechSynthesis.speak(utterance)
@@ -97,20 +115,31 @@ export function isSpeaking(): boolean {
 
 // 初始化语音列表（某些浏览器需要异步加载）
 export function initSpeech(): void {
-  if (!isSpeechSupported()) return
+  if (!isSpeechSupported()) {
+    console.warn('[语音] 浏览器不支持 Web Speech API')
+    return
+  }
+
+  console.log('[语音] 初始化语音合成...')
 
   const loadVoices = () => {
     const voices = window.speechSynthesis.getVoices()
+    console.log('[语音] 可用语音数量:', voices.length)
     if (voices.length > 0) {
       voicesReady = true
-      // Chrome bug workaround: 首次调用 speak 可能被吞掉，先唤醒
-      wakeUpSpeech()
+      // 延迟唤醒，确保引擎就绪
+      setTimeout(() => wakeUpSpeech(), 100)
     }
   }
 
   loadVoices()
 
   if (!voicesReady) {
-    window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      const voices = window.speechSynthesis.getVoices()
+      console.log('[语音] voiceschanged 事件, 可用语音数量:', voices.length)
+      voicesReady = true
+      setTimeout(() => wakeUpSpeech(), 100)
+    })
   }
 }

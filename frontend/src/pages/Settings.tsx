@@ -68,10 +68,10 @@ export default function Settings() {
 
   // 测试语音
   const handleTestSpeech = () => {
-    // 延迟 300ms 确保语音引擎已唤醒
+    // 延迟确保语音引擎已唤醒
     setTimeout(() => {
       speak('语音播报已开启，将为您朗读新闻标题')
-    }, 300)
+    }, 500)
   }
 
   const fetchSources = async () => {
