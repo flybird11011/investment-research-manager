@@ -5,7 +5,7 @@
     "type": "rss",
     "category": "macro",
     "encoding": "utf-8",
-    "isEnabled": true,
+    "isEnabled": false,
     "isDefault": true,
     "id": 1
   },
@@ -15,7 +15,7 @@
     "type": "rss",
     "category": "macro",
     "encoding": "utf-8",
-    "isEnabled": true,
+    "isEnabled": false,
     "isDefault": true,
     "id": 2
   },
@@ -25,7 +25,7 @@
     "type": "rss",
     "category": "macro",
     "encoding": "utf-8",
-    "isEnabled": true,
+    "isEnabled": false,
     "isDefault": true,
     "id": 3
   },
@@ -58,5 +58,15 @@
     "isEnabled": true,
     "isDefault": true,
     "id": 6
+  },
+  {
+    "name": "财联社-电报快讯",
+    "url": "https://www.cls.cn/telegraph",
+    "type": "cls",
+    "category": "stock",
+    "encoding": "utf-8",
+    "isEnabled": true,
+    "isDefault": true,
+    "id": 7
   }
 ]

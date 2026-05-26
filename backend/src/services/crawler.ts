@@ -76,6 +76,13 @@ const DEFAULT_SOURCES = [
     category: 'stock',
     encoding: 'utf-8',
   },
+  {
+    name: '财联社-电报快讯',
+    url: 'https://www.cls.cn/telegraph',
+    type: 'cls',
+    category: 'stock',
+    encoding: 'utf-8',
+  },
 ];
 
 // 初始化默认新闻源（同时修复已有源的编码配置）
@@ -500,6 +507,114 @@ async function fetchFromGuzhang(source: any) {
   }
 }
 
+// ============ 财联社电报快讯抓取 ============
+async function fetchFromCls(source: any) {
+  try {
+    console.log(`📡 [${source.name}] 正在抓取财联社电报快讯...`);
+
+    const apiUrl = 'https://www.cls.cn/nodeapi/updateTelegraphList';
+    // 用过去1小时的时间戳，获取最近1小时的快讯
+    const timestamp = (Math.floor(Date.now() / 1000) - 3600).toString();
+
+    // 构造请求参数
+    const params: Record<string, string> = {
+      app: 'CailianpressWeb',
+      os: 'web',
+      sv: '8.4.6',
+      rn: '30',
+      lastTime: timestamp,
+      hasFirstVipArticle: '0',
+      subscribedColumnIds: '',
+    };
+
+    // 生成 sign：参数按 key 排序 → URL 编码 → SHA1 → MD5
+    const sortedKeys = Object.keys(params).sort();
+    const queryString = sortedKeys
+      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&');
+
+    const sha1Hash = crypto.createHash('sha1').update(queryString).digest('hex');
+    const sign = crypto.createHash('md5').update(sha1Hash).digest('hex');
+    params.sign = sign;
+
+    const response = await axios.get(apiUrl, {
+      params,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Referer': 'https://www.cls.cn/telegraph',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      timeout: 15000,
+    });
+
+    const results: any[] = [];
+
+    // 检查API响应
+    if (!response.data || !response.data.data) {
+      console.log(`   ⚠️ API返回数据格式不正确`);
+      return [];
+    }
+
+    const newsList = response.data?.data?.roll_data || [];
+    if (!Array.isArray(newsList) || newsList.length === 0) {
+      console.log(`   ⚠️ API返回数据为空（可能没有新快讯）`);
+      return [];
+    }
+
+    console.log(`   📄 API返回 ${newsList.length} 条快讯`);
+
+    for (const item of newsList) {
+      const title = item?.title || item?.brief || '';
+      const content = item?.content || item?.brief || '';
+
+      if (!title && !content) continue;
+
+      // 使用标题或内容前80字作为标题
+      const displayTitle = title || content.substring(0, 80);
+      if (displayTitle.length < 5) continue;
+
+      // 构建新闻链接
+      const newsId = item?.id || item?.telegraph_id;
+      const link = newsId ? `https://www.cls.cn/telegraph/${newsId}` : source.url;
+
+      // 解析时间
+      let publishedAt = new Date().toISOString();
+      const ctime = item?.ctime || item?.created_at;
+      if (ctime) {
+        const date = new Date(parseInt(ctime) * 1000);
+        if (!isNaN(date.getTime())) {
+          publishedAt = date.toISOString();
+        }
+      }
+
+      // 提取分类标签
+      const subject = item?.subject || '';
+      const category = detectCategory(displayTitle + ' ' + content + ' ' + subject);
+
+      results.push({
+        title: displayTitle.substring(0, 100),
+        summary: (content || title).substring(0, 200),
+        content: content || title,
+        source: source.name,
+        sourceUrl: link,
+        category: category,
+        publishedAt,
+      });
+    }
+
+    console.log(`   ✅ 成功解析 ${results.length} 条快讯`);
+    return results.slice(0, 50);
+  } catch (error: any) {
+    console.error(`❌ [${source.name}] 财联社抓取失败:`, error.message);
+    if (error.response) {
+      console.error(`   响应状态: ${error.response.status}`);
+    }
+    return [];
+  }
+}
+
 // ============ 网页抓取（备选方案）============
 async function fetchFromWeb(source: any) {
   try {
@@ -821,6 +936,9 @@ async function crawlTask(options: { force?: boolean; sourceName?: string } = {})
             break;
           case 'guzhang':
             newsItems = await fetchFromGuzhang(source);
+            break;
+          case 'cls':
+            newsItems = await fetchFromCls(source);
             break;
           default:
             newsItems = await fetchFromRSS(source);

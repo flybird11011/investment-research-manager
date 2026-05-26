@@ -12,7 +12,7 @@ export const dailyBriefings = 'dailyBriefings' as const;
 // 模拟 drizzle 的 db 对象
 import * as jsonDb from './jsonDb';
 
-type TableName = 'news' | 'watchlist' | 'newsSources' | 'events' | 'reports' | 'dailyBriefings' | 'sourceStatus' | 'users';
+type TableName = 'news' | 'watchlist' | 'newsSources' | 'events' | 'reports' | 'dailyBriefings' | 'sourceStatus' | 'users' | 'systemSettings';
 
 export const db = {
   select: () => ({

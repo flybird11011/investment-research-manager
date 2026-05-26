@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { findAll, findWhere, create } from '../db/jsonDb';
+import { Router, Request, Response, NextFunction } from 'express';
+import { findAll, findWhere, create, update, remove } from '../db/jsonDb';
 import crypto from 'crypto';
 
 const router = Router();
@@ -14,9 +14,37 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// 管理员权限验证中间件
+function adminOnly(req: Request, res: Response, next: NextFunction) {
+  const username = req.headers['x-username'] as string;
+  if (!username) {
+    return res.status(401).json({ error: '未登录' });
+  }
+
+  const users = findAll<any>('users');
+  const user = users.find((u: any) => u.username === username) as any;
+
+  if (!user) {
+    return res.status(401).json({ error: '用户不存在' });
+  }
+
+  if (user.role !== 'admin') {
+    return res.status(403).json({ error: '需要管理员权限' });
+  }
+
+  next();
+}
+
 // 注册
 router.post('/register', async (req, res) => {
   try {
+    // 检查注册是否关闭
+    const settings = findAll<any>('systemSettings');
+    const registrationDisabled = settings.find((s: any) => s.key === 'registrationDisabled');
+    if (registrationDisabled && registrationDisabled.value === true) {
+      return res.status(403).json({ error: '注册功能已关闭，请联系管理员' });
+    }
+
     const { username, password, nickname } = req.body;
 
     if (!username || !password) {
@@ -38,12 +66,17 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: '用户名已存在' });
     }
 
+    // 如果用户表为空，第一个注册的用户为管理员
+    const role = existingUsers.length === 0 ? 'admin' : 'user';
+
     // 创建用户
     const user = create('users', {
       username,
       password: hashPassword(password),
       nickname: nickname || username,
       avatar: '',
+      role,
+      disabled: false,
       createdAt: new Date().toISOString(),
       lastLoginAt: null,
     }) as any;
@@ -79,6 +112,10 @@ router.post('/login', async (req, res) => {
 
     if (user.password !== hashPassword(password)) {
       return res.status(401).json({ error: '用户名或密码错误' });
+    }
+
+    if (user.disabled) {
+      return res.status(403).json({ error: '账户已被禁用，请联系管理员' });
     }
 
     // 生成 token
@@ -129,4 +166,141 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// ========== 用户管理 API（仅管理员） ==========
+
+// 获取所有用户列表
+router.get('/users', adminOnly, async (req, res) => {
+  try {
+    const users = findAll<any>('users');
+    // 返回用户信息（不含密码）
+    const userList = users.map((u: any) => {
+      const { password: _, ...userInfo } = u;
+      return userInfo;
+    });
+    res.json({ success: true, users: userList });
+  } catch (error) {
+    console.error('获取用户列表失败:', error);
+    res.status(500).json({ error: '获取用户列表失败' });
+  }
+});
+
+// 更新用户（禁用/启用）
+router.put('/users/:id', adminOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { disabled } = req.body;
+
+    const currentUsername = req.headers['x-username'] as string;
+    const users = findAll<any>('users');
+    const targetUser = users.find((u: any) => u.id === userId) as any;
+
+    if (!targetUser) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 不能禁用/启用自己
+    if (targetUser.username === currentUsername) {
+      return res.status(400).json({ error: '不能修改自己的状态' });
+    }
+
+    // 不能禁用其他管理员
+    if (targetUser.role === 'admin' && disabled) {
+      return res.status(400).json({ error: '不能禁用管理员账户' });
+    }
+
+    const updatedUser = update('users', userId, { disabled: !!disabled }) as any;
+    if (!updatedUser) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    const { password: _, ...userInfo } = updatedUser;
+    res.json({ success: true, user: userInfo });
+  } catch (error) {
+    console.error('更新用户失败:', error);
+    res.status(500).json({ error: '更新用户失败' });
+  }
+});
+
+// 删除用户
+router.delete('/users/:id', adminOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const currentUsername = req.headers['x-username'] as string;
+
+    const users = findAll<any>('users');
+    const targetUser = users.find((u: any) => u.id === userId) as any;
+
+    if (!targetUser) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 不能删除自己
+    if (targetUser.username === currentUsername) {
+      return res.status(400).json({ error: '不能删除自己' });
+    }
+
+    // 不能删除其他管理员
+    if (targetUser.role === 'admin') {
+      return res.status(400).json({ error: '不能删除管理员账户' });
+    }
+
+    const deleted = remove('users', userId);
+    if (!deleted) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    res.json({ success: true, message: '用户已删除' });
+  } catch (error) {
+    console.error('删除用户失败:', error);
+    res.status(500).json({ error: '删除用户失败' });
+  }
+});
+
 export { router as authRouter };
+
+// ========== 系统设置 API（仅管理员） ==========
+
+// 获取系统设置
+router.get('/settings', adminOnly, async (req, res) => {
+  try {
+    const settings = findAll<any>('systemSettings');
+    const registrationDisabled = settings.find((s: any) => s.key === 'registrationDisabled');
+    res.json({
+      success: true,
+      settings: {
+        registrationDisabled: registrationDisabled?.value === true,
+      },
+    });
+  } catch (error) {
+    console.error('获取系统设置失败:', error);
+    res.status(500).json({ error: '获取系统设置失败' });
+  }
+});
+
+// 更新系统设置
+router.put('/settings', adminOnly, async (req, res) => {
+  try {
+    const { registrationDisabled } = req.body;
+
+    const settings = findAll<any>('systemSettings');
+    const existing = settings.find((s: any) => s.key === 'registrationDisabled');
+
+    if (existing) {
+      update('systemSettings', existing.id, { value: !!registrationDisabled } as any);
+    } else {
+      create('systemSettings', {
+        key: 'registrationDisabled',
+        value: !!registrationDisabled,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: registrationDisabled ? '注册功能已关闭' : '注册功能已开启',
+      settings: { registrationDisabled: !!registrationDisabled },
+    });
+  } catch (error) {
+    console.error('更新系统设置失败:', error);
+    res.status(500).json({ error: '更新系统设置失败' });
+  }
+});

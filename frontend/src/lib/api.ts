@@ -5,6 +5,26 @@ const api = axios.create({
   timeout: 10000,
 })
 
+// 请求拦截器：自动附带认证信息
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token')
+  const userStr = localStorage.getItem('auth_user')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      if (user.username) {
+        config.headers['x-username'] = user.username
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return config
+})
+
 // 资讯API
 export const newsApi = {
   getList: (params?: { category?: string; source?: string; stock?: string; page?: number; limit?: number }) =>

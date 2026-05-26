@@ -6,14 +6,22 @@ interface User {
   username: string;
   nickname: string;
   avatar: string;
+  role?: string;
+  disabled?: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+// 判断当前用户是否为管理员
+function isAdmin(user: User | null): boolean {
+  return user?.role === 'admin';
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isAdmin: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, nickname?: string) => Promise<void>;
   logout: () => void;
@@ -69,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isAdmin: isAdmin(user), login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, Globe, Rss } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck } from 'lucide-react'
 import { sourcesApi } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import api from '../lib/api'
 
 interface NewsSource {
   id: number
@@ -11,15 +13,38 @@ interface NewsSource {
   isDefault: boolean
 }
 
+interface ManagedUser {
+  id: number
+  username: string
+  nickname: string
+  role: string
+  disabled: boolean
+  createdAt: string
+  lastLoginAt: string | null
+}
+
 export default function Settings() {
+  const { isAdmin, user: currentUser } = useAuth()
+  const [activeTab, setActiveTab] = useState<'sources' | 'users'>('sources')
+
+  // 新闻源相关状态
   const [sources, setSources] = useState<NewsSource[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newSource, setNewSource] = useState({ name: '', url: '', type: 'rss' })
 
+  // 用户管理相关状态
+  const [users, setUsers] = useState<ManagedUser[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [registrationDisabled, setRegistrationDisabled] = useState(false)
+
   useEffect(() => {
     fetchSources()
-  }, [])
+    if (isAdmin) {
+      fetchUsers()
+      fetchSettings()
+    }
+  }, [isAdmin])
 
   const fetchSources = async () => {
     setLoading(true)
@@ -30,6 +55,41 @@ export default function Settings() {
       console.error('获取新闻源失败:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const res = await api.get('/auth/users')
+      setUsers(res.data.users)
+    } catch (error) {
+      console.error('获取用户列表失败:', error)
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get('/auth/settings')
+      setRegistrationDisabled(res.data.settings.registrationDisabled)
+    } catch (error) {
+      console.error('获取系统设置失败:', error)
+    }
+  }
+
+  const handleToggleRegistration = async () => {
+    const newValue = !registrationDisabled
+    const action = newValue ? '关闭' : '开启'
+    if (!confirm(`确定要${action}注册功能吗？`)) return
+
+    try {
+      await api.put('/auth/settings', { registrationDisabled: newValue })
+      setRegistrationDisabled(newValue)
+    } catch (error) {
+      console.error('更新系统设置失败:', error)
+      alert('操作失败')
     }
   }
 
@@ -79,6 +139,47 @@ export default function Settings() {
     }
   }
 
+  const handleToggleUser = async (targetUser: ManagedUser) => {
+    if (targetUser.username === currentUser?.username) return
+
+    const action = targetUser.disabled ? '启用' : '禁用'
+    if (!confirm(`确定要${action}用户 "${targetUser.nickname}" 吗？`)) return
+
+    try {
+      await api.put(`/auth/users/${targetUser.id}`, { disabled: !targetUser.disabled })
+      fetchUsers()
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '操作失败'
+      alert(msg)
+    }
+  }
+
+  const handleDeleteUser = async (targetUser: ManagedUser) => {
+    if (targetUser.username === currentUser?.username) return
+
+    if (!confirm(`确定要删除用户 "${targetUser.nickname}" 吗？此操作不可撤销。`)) return
+
+    try {
+      await api.delete(`/auth/users/${targetUser.id}`)
+      fetchUsers()
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '删除失败'
+      alert(msg)
+    }
+  }
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    const date = new Date(dateStr)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
@@ -86,143 +187,313 @@ export default function Settings() {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">设置</h1>
       </div>
 
-      {/* 新闻源设置 */}
-      <div className="card">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">新闻源管理</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              管理资讯来源，支持添加自定义 RSS 源
-            </p>
+      {/* Tab 切换 */}
+      {isAdmin && (
+        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab('sources')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'sources'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Globe className="w-4 h-4" />
+            <span>新闻源管理</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'users'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>用户管理</span>
+          </button>
+        </div>
+      )}
+
+      {/* 新闻源管理 Tab */}
+      {activeTab === 'sources' && (
+        <div className="card">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">新闻源管理</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                管理资讯来源，支持添加自定义 RSS 源
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={fetchSources}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="刷新"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="btn-primary flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">添加源</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
+
+          {/* 添加表单 */}
+          {showAddForm && (
+            <form onSubmit={handleAdd} className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">添加自定义新闻源</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">名称</label>
+                  <input
+                    type="text"
+                    value={newSource.name}
+                    onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
+                    placeholder="如：某某财经"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">RSS URL</label>
+                  <input
+                    type="url"
+                    value={newSource.url}
+                    onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
+                    placeholder="https://example.com/feed.xml"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 mt-4">
+                <button type="submit" className="btn-primary text-sm flex-1 sm:flex-none">
+                  确认添加
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="btn-secondary text-sm flex-1 sm:flex-none"
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 新闻源列表 */}
+          <div className="space-y-2 sm:space-y-3">
+            {sources.map((source) => (
+              <div
+                key={source.id}
+                className="flex items-center justify-between p-2.5 sm:p-3 lg:p-4 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
+                    {source.type === 'rss' ? (
+                      <Rss className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                    ) : (
+                      <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
+                      {source.isDefault && (
+                        <span className="badge badge-gray text-xs">默认</span>
+                      )}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
+                      {source.url}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
+                  {/* 启用/禁用开关 - 44px最小触摸区域 */}
+                  <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
+                    <input
+                      type="checkbox"
+                      checked={source.isEnabled}
+                      onChange={() => handleToggle(source)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
+                      {source.isEnabled ? '启用' : '禁用'}
+                    </span>
+                  </label>
+
+                  {/* 删除按钮 - 44px最小触摸区域 */}
+                  {!source.isDefault && (
+                    <button
+                      onClick={() => handleRemove(source.id)}
+                      className="p-2 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 恢复默认 */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
             <button
-              onClick={fetchSources}
+              onClick={handleReset}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              恢复默认新闻源设置
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 用户管理 Tab（仅管理员可见） */}
+      {activeTab === 'users' && isAdmin && (
+        <div className="space-y-6">
+          {/* 注册开关 */}
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">注册控制</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {registrationDisabled
+                    ? '注册功能已关闭，新用户无法注册'
+                    : '注册功能已开启，任何人都可以注册'}
+                </p>
+              </div>
+              <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
+                <input
+                  type="checkbox"
+                  checked={registrationDisabled}
+                  onChange={handleToggleRegistration}
+                  className="sr-only peer"
+                />
+                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
+                  {registrationDisabled ? '已关闭' : '已开启'}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* 用户列表 */}
+          <div className="card">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">用户管理</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                管理系统用户，共 {users.length} 个用户
+              </p>
+            </div>
+            <button
+              onClick={fetchUsers}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               title="刷新"
             >
-              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="btn-primary flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">添加源</span>
+              <RefreshCw className={`w-5 h-5 ${usersLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
-        </div>
 
-        {/* 添加表单 */}
-        {showAddForm && (
-          <form onSubmit={handleAdd} className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">添加自定义新闻源</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">名称</label>
-                <input
-                  type="text"
-                  value={newSource.name}
-                  onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
-                  placeholder="如：某某财经"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm text-gray-600 mb-1">RSS URL</label>
-                <input
-                  type="url"
-                  value={newSource.url}
-                  onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
-                  placeholder="https://example.com/feed.xml"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
-                  required
-                />
-              </div>
+          {/* 用户列表 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium">用户名</th>
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium">昵称</th>
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium">角色</th>
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium hidden md:table-cell">注册时间</th>
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium hidden lg:table-cell">最后登录</th>
+                  <th className="text-left py-3 px-2 text-gray-600 font-medium">状态</th>
+                  <th className="text-right py-3 px-2 text-gray-600 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const isSelf = u.username === currentUser?.username
+                  return (
+                    <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-2 text-gray-900 font-medium">{u.username}</td>
+                      <td className="py-3 px-2 text-gray-700">{u.nickname}</td>
+                      <td className="py-3 px-2">
+                        {u.role === 'admin' ? (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>管理员</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                            <Shield className="w-3 h-3" />
+                            <span>用户</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-gray-500 hidden md:table-cell">
+                        {formatDate(u.createdAt)}
+                      </td>
+                      <td className="py-3 px-2 text-gray-500 hidden lg:table-cell">
+                        {formatDate(u.lastLoginAt)}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                          u.disabled
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {u.disabled ? '已禁用' : '正常'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        {!isSelf && u.role !== 'admin' && (
+                          <div className="flex items-center justify-end space-x-1">
+                            <button
+                              onClick={() => handleToggleUser(u)}
+                              className={`p-1.5 rounded-lg transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center ${
+                                u.disabled
+                                  ? 'text-green-600 hover:bg-green-50'
+                                  : 'text-yellow-600 hover:bg-yellow-50'
+                              }`}
+                              title={u.disabled ? '启用用户' : '禁用用户'}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
+                              title="删除用户"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                        {isSelf && (
+                          <span className="text-xs text-gray-400">当前用户</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {users.length === 0 && !usersLoading && (
+            <div className="text-center py-12 text-gray-400">
+              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>暂无用户数据</p>
             </div>
-            <div className="flex items-center space-x-3 mt-4">
-              <button type="submit" className="btn-primary text-sm flex-1 sm:flex-none">
-                确认添加
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="btn-secondary text-sm flex-1 sm:flex-none"
-              >
-                取消
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* 新闻源列表 */}
-        <div className="space-y-2 sm:space-y-3">
-          {sources.map((source) => (
-            <div
-              key={source.id}
-              className="flex items-center justify-between p-2.5 sm:p-3 lg:p-4 bg-gray-50 rounded-lg"
-            >
-              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
-                  {source.type === 'rss' ? (
-                    <Rss className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                  ) : (
-                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
-                    {source.isDefault && (
-                      <span className="badge badge-gray text-xs">默认</span>
-                    )}
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
-                    {source.url}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
-                {/* 启用/禁用开关 - 44px最小触摸区域 */}
-                <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
-                  <input
-                    type="checkbox"
-                    checked={source.isEnabled}
-                    onChange={() => handleToggle(source)}
-                    className="sr-only peer"
-                  />
-                  <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                  <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
-                    {source.isEnabled ? '启用' : '禁用'}
-                  </span>
-                </label>
-
-                {/* 删除按钮 - 44px最小触摸区域 */}
-                {!source.isDefault && (
-                  <button
-                    onClick={() => handleRemove(source.id)}
-                    className="p-2 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+          )}
+          </div>
         </div>
-
-        {/* 恢复默认 */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <button
-            onClick={handleReset}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
-          >
-            恢复默认新闻源设置
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 关于 */}
       <div className="card">

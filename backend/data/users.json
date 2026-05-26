@@ -6,6 +6,8 @@
     "avatar": "",
     "createdAt": "2026-05-25T14:56:34.051Z",
     "lastLoginAt": null,
+    "role": "admin",
+    "disabled": false,
     "id": 1
   }
 ]
