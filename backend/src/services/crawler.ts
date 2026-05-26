@@ -39,21 +39,21 @@ const DEFAULT_SOURCES = [
     url: 'http://rss.sina.com.cn/finance/gjcj.xml',
     type: 'rss',
     category: 'macro',
-    encoding: 'gbk', // 新浪使用GBK编码
+    encoding: 'utf-8', // 新浪RSS已切换为UTF-8编码
   },
   {
     name: '新浪财经-国内财经',
     url: 'http://rss.sina.com.cn/finance/gncj.xml',
     type: 'rss',
     category: 'macro',
-    encoding: 'gbk',
+    encoding: 'utf-8',
   },
   {
     name: '新浪财经-滚动新闻',
     url: 'http://rss.sina.com.cn/finance/roll/newindex.xml',
     type: 'rss',
     category: 'macro',
-    encoding: 'gbk',
+    encoding: 'utf-8',
   },
 ];
 
