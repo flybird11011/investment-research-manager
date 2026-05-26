@@ -57,12 +57,13 @@ const DEFAULT_SOURCES = [
   },
 ];
 
-// 初始化默认新闻源
+// 初始化默认新闻源（同时修复已有源的编码配置）
 export async function initDefaultSources() {
   try {
-    const existing = findAll<any>('newsSources').length;
+    const existingSources = findAll<any>('newsSources');
     
-    if (existing === 0) {
+    if (existingSources.length === 0) {
+      // 首次启动：创建所有默认源
       for (const source of DEFAULT_SOURCES) {
         create('newsSources', {
           name: source.name,
@@ -74,7 +75,23 @@ export async function initDefaultSources() {
           isDefault: true,
         });
       }
-      console.log('✅ 默认新闻源已初始化（支持中文编码）');
+      console.log('✅ 默认新闻源已初始化');
+    } else {
+      // 非首次启动：更新默认源的编码配置（不影响用户自定义源）
+      let updated = 0;
+      for (const defaultSource of DEFAULT_SOURCES) {
+        const existing = existingSources.find(
+          (s: any) => s.name === defaultSource.name
+        );
+        if (existing && existing.encoding !== defaultSource.encoding) {
+          const { update } = require('../db/jsonDb');
+          update('newsSources', existing.id, { encoding: defaultSource.encoding } as any);
+          updated++;
+        }
+      }
+      if (updated > 0) {
+        console.log(`✅ 已更新 ${updated} 个默认新闻源的编码配置`);
+      }
     }
   } catch (error) {
     console.error('初始化默认新闻源失败:', error);
