@@ -62,13 +62,8 @@ export function speak(text: string): void {
     return
   }
 
-  // Chrome bug: 长时间不使用后 speechSynthesis 会暂停，需要 resume
+  // Chrome bug: cancel() 后立即 speak() 会被静默吞掉，必须加延迟
   window.speechSynthesis.cancel()
-
-  // Chrome bug workaround: resume 可能需要延迟
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume()
-  }
 
   const utterance = new SpeechSynthesisUtterance(text)
   const voice = getFemaleVoice()
@@ -98,7 +93,10 @@ export function speak(text: string): void {
     console.error('[语音] 朗读出错:', e.error)
   }
 
-  window.speechSynthesis.speak(utterance)
+  // Chrome bug fix: cancel() 和 speak() 之间必须有延迟
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance)
+  }, 100)
 }
 
 // 停止朗读
