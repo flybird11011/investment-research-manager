@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, RefreshCw, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { newsApi, eventsApi } from '../lib/api'
 import { formatTime, truncateText, getCategoryBadgeClass } from '../lib/utils'
+import { speak, isSpeechSupported } from '../lib/speech'
 
 interface NewsItem {
   id: number
@@ -47,8 +48,13 @@ export default function NewsFeed() {
   const eventsPageRef = useRef(1)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const lastNewsIdsRef = useRef<Set<number>>(new Set())
+  const isFirstLoadRef = useRef(true)
 
   const categoryParam = searchParams.get('category') || '全部'
+
+  // 语音播报开关（从 localStorage 读取）
+  const speechEnabled = isSpeechSupported() && localStorage.getItem('speechEnabled') === 'true'
 
   const fetchEvents = useCallback(async (page: number, append: boolean = false) => {
     try {
@@ -72,6 +78,23 @@ export default function NewsFeed() {
       const category = selectedCategory === '全部' ? undefined : selectedCategory
       const res = await newsApi.getList({ category, limit: PAGE_SIZE, page: page.toString() })
       const { data: items, total } = res.data
+
+      // 语音播报：检测新新闻（非首次加载且非翻页时）
+      if (!append && !isFirstLoadRef.current && speechEnabled && items.length > 0) {
+        const newItems = items.filter((item: NewsItem) => !lastNewsIdsRef.current.has(item.id))
+        if (newItems.length > 0) {
+          // 朗读最新的 3 条新闻标题
+          const titlesToSpeak = newItems.slice(0, 3).map((item: NewsItem) => item.title)
+          speak(titlesToSpeak.join('。'))
+        }
+      }
+
+      // 更新已记录的 ID
+      if (!append) {
+        lastNewsIdsRef.current = new Set(items.map((item: NewsItem) => item.id))
+        isFirstLoadRef.current = false
+      }
+
       if (append) {
         setNews(prev => [...prev, ...items])
       } else {
@@ -83,7 +106,7 @@ export default function NewsFeed() {
     } catch (error) {
       console.error('获取资讯失败:', error)
     }
-  }, [selectedCategory])
+  }, [selectedCategory, speechEnabled])
 
   const fetchData = useCallback(async () => {
     setLoading(true)

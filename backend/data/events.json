@@ -11426,5 +11426,71 @@
     "lastPublishedAt": "2026-05-26T09:48:26.000Z",
     "createdAt": "2026-05-26T15:34:29.572Z",
     "id": 1034
+  },
+  {
+    "eventId": "753c193f393d3a5b",
+    "title": "美光科技市值周二突破1万亿美元，跻身万亿阵营，这再度显示存储相关的半导体已成为AI基础设施建设的关键组成部分。该...",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:35:41.000Z",
+    "lastPublishedAt": "2026-05-26T15:35:41.000Z",
+    "createdAt": "2026-05-26T15:40:01.632Z",
+    "id": 1035
+  },
+  {
+    "eventId": "1b3366e378deb0e0",
+    "title": "美国国务卿鲁比奥表示，美伊双方为延长停火、重开霍尔木兹海峡而展开的谈判，因协议草案措辞仍有分歧，还需数日才能完成。 他称，美方...",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:31:15.000Z",
+    "lastPublishedAt": "2026-05-26T15:31:15.000Z",
+    "createdAt": "2026-05-26T15:40:01.693Z",
+    "id": 1036
+  },
+  {
+    "eventId": "3e48909d66f61d7b",
+    "title": "据美联社：美国国务卿鲁比奥称伊朗相关协议谈判还将持续数日。",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:30:12.000Z",
+    "lastPublishedAt": "2026-05-26T15:30:12.000Z",
+    "createdAt": "2026-05-26T15:40:01.739Z",
+    "id": 1037
+  },
+  {
+    "eventId": "db2c2226493bbcbc",
+    "title": "美光市值突破1万亿美元大关 AI带来旺盛需求",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:36:03.000Z",
+    "lastPublishedAt": "2026-05-26T15:36:03.000Z",
+    "createdAt": "2026-05-26T15:40:02.873Z",
+    "id": 1038
+  },
+  {
+    "eventId": "bc95fbbdd5ca4f90",
+    "title": "欧洲主要股指收盘多数下跌",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:31:52.000Z",
+    "lastPublishedAt": "2026-05-26T15:31:52.000Z",
+    "createdAt": "2026-05-26T15:40:04.276Z",
+    "id": 1039
+  },
+  {
+    "eventId": "98a08bd7c3989709",
+    "title": "财联社5月26日电，美国财政部拍卖三个月期国债，得标利率3.595%，投标倍数3.08；拍卖六个月期国债，得标利率3.650%，投标倍数2.77。",
+    "category": "宏观",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T15:35:14.000Z",
+    "lastPublishedAt": "2026-05-26T15:35:14.000Z",
+    "createdAt": "2026-05-26T15:40:04.341Z",
+    "id": 1040
   }
 ]

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock, Save } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock, Save, Volume2, VolumeX } from 'lucide-react'
 import { sourcesApi, crawlerApi } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import api from '../lib/api'
+import { isSpeechSupported, speak, initSpeech } from '../lib/speech'
 
 interface NewsSource {
   id: number
@@ -43,6 +44,12 @@ export default function Settings() {
   const [editingInterval, setEditingInterval] = useState<string | null>(null)
   const [intervalValue, setIntervalValue] = useState<number>(10)
 
+  // 语音播报相关
+  const [speechEnabled, setSpeechEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('speechEnabled') === 'true'
+  })
+  const speechSupported = isSpeechSupported()
+
   useEffect(() => {
     fetchSources()
     fetchSourceStatuses()
@@ -50,7 +57,19 @@ export default function Settings() {
       fetchUsers()
       fetchSettings()
     }
+    // 初始化语音
+    initSpeech()
   }, [isAdmin])
+
+  // 保存语音设置到 localStorage
+  useEffect(() => {
+    localStorage.setItem('speechEnabled', speechEnabled.toString())
+  }, [speechEnabled])
+
+  // 测试语音
+  const handleTestSpeech = () => {
+    speak('语音播报已开启，将为您朗读新闻标题')
+  }
 
   const fetchSources = async () => {
     setLoading(true)
@@ -277,6 +296,48 @@ export default function Settings() {
               </button>
             </div>
           </div>
+
+          {/* 语音播报设置 */}
+          {speechSupported && (
+            <div className="mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    {speechEnabled ? (
+                      <Volume2 className="w-5 h-5 text-blue-600" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-gray-400" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">语音播报</h3>
+                    <p className="text-sm text-gray-500">
+                      {speechEnabled ? '新新闻刷新时自动朗读标题' : '已关闭'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {speechEnabled && (
+                    <button
+                      onClick={handleTestSpeech}
+                      className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      测试
+                    </button>
+                  )}
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={speechEnabled}
+                      onChange={(e) => setSpeechEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 添加表单 */}
           {showAddForm && (
