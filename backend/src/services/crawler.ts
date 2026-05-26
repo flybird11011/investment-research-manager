@@ -83,6 +83,13 @@ const DEFAULT_SOURCES = [
     category: 'stock',
     encoding: 'utf-8',
   },
+  {
+    name: '华尔街见闻-7x24全球快讯',
+    url: 'https://wallstreetcn.com/live/global',
+    type: 'wallstreetcn',
+    category: 'macro',
+    encoding: 'utf-8',
+  },
 ];
 
 // 初始化默认新闻源（同时修复已有源的编码配置）
@@ -615,6 +622,95 @@ async function fetchFromCls(source: any) {
   }
 }
 
+// ============ 华尔街见闻7x24快讯抓取 ============
+async function fetchFromWallstreetcn(source: any) {
+  try {
+    console.log(`📡 [${source.name}] 正在抓取华尔街见闻7x24快讯...`);
+
+    const apiUrl = 'https://api-one-wscn.awtmt.com/apiv1/content/information-flow';
+
+    const response = await axios.get(apiUrl, {
+      params: {
+        channel: 'global-live',
+        limit: '30',
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Referer': 'https://wallstreetcn.com/live/global',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      timeout: 15000,
+    });
+
+    const results: any[] = [];
+
+    // 检查API响应
+    if (!response.data?.data?.items || !Array.isArray(response.data.data.items)) {
+      console.log(`   ⚠️ API返回数据格式不正确`);
+      return [];
+    }
+
+    const items = response.data.data.items;
+    console.log(`   📄 API返回 ${items.length} 条数据`);
+
+    // 只处理 resource_type === 'live' 的快讯
+    for (const item of items) {
+      if (item.resource_type !== 'live') continue;
+
+      const resource = item.resource;
+      if (!resource) continue;
+
+      const title = resource.title || '';
+      const contentText = resource.content_text || '';
+      const content = cleanHTML(resource.content || '') || contentText;
+
+      if (!title && !content) continue;
+
+      // 使用标题或内容前80字作为标题
+      const displayTitle = title || content.substring(0, 80);
+      if (displayTitle.length < 5) continue;
+
+      // 构建新闻链接
+      const uri = resource.uri || '';
+      const link = uri.startsWith('http') ? uri : `https://wallstreetcn.com${uri}`;
+
+      // 解析时间（display_time 是 Unix 时间戳，秒）
+      let publishedAt = new Date().toISOString();
+      const displayTime = resource.display_time;
+      if (displayTime) {
+        const date = new Date(parseInt(displayTime) * 1000);
+        if (!isNaN(date.getTime())) {
+          publishedAt = date.toISOString();
+        }
+      }
+
+      // 提取分类标签
+      const category = detectCategory(displayTitle + ' ' + content);
+
+      results.push({
+        title: displayTitle.substring(0, 100),
+        summary: (content || title).substring(0, 200),
+        content: content || title,
+        source: source.name,
+        sourceUrl: link || source.url,
+        category: category,
+        publishedAt,
+      });
+    }
+
+    console.log(`   ✅ 成功解析 ${results.length} 条快讯`);
+    return results.slice(0, 30);
+  } catch (error: any) {
+    console.error(`❌ [${source.name}] 华尔街见闻抓取失败:`, error.message);
+    if (error.response) {
+      console.error(`   响应状态: ${error.response.status}`);
+    }
+    return [];
+  }
+}
+
 // ============ 网页抓取（备选方案）============
 async function fetchFromWeb(source: any) {
   try {
@@ -939,6 +1035,9 @@ async function crawlTask(options: { force?: boolean; sourceName?: string } = {})
             break;
           case 'cls':
             newsItems = await fetchFromCls(source);
+            break;
+          case 'wallstreetcn':
+            newsItems = await fetchFromWallstreetcn(source);
             break;
           default:
             newsItems = await fetchFromRSS(source);

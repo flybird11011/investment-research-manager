@@ -68,5 +68,15 @@
     "isEnabled": true,
     "isDefault": true,
     "id": 7
+  },
+  {
+    "name": "华尔街见闻-7x24全球快讯",
+    "url": "https://wallstreetcn.com/live/global",
+    "type": "wallstreetcn",
+    "category": "macro",
+    "encoding": "utf-8",
+    "isEnabled": true,
+    "isDefault": true,
+    "id": 8
   }
 ]
