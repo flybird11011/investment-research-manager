@@ -98,3 +98,12 @@ export const authApi = {
     api.post('/auth/register', { username, password, nickname }),
   getMe: () => api.get('/auth/me'),
 };
+
+// 爬虫/源状态API
+export const crawlerApi = {
+  getStats: () => api.get('/crawler/stats'),
+  setInterval: (sourceName: string, intervalMinutes: number) =>
+    api.post('/crawler/set-interval', { sourceName, intervalMinutes }),
+  trigger: () => api.post('/crawler/trigger'),
+  force: (sourceName?: string) => api.post('/crawler/force', { sourceName }),
+};

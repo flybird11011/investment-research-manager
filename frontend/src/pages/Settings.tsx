@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck } from 'lucide-react'
-import { sourcesApi } from '../lib/api'
+import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock, Save } from 'lucide-react'
+import { sourcesApi, crawlerApi } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import api from '../lib/api'
 
@@ -38,8 +38,14 @@ export default function Settings() {
   const [usersLoading, setUsersLoading] = useState(false)
   const [registrationDisabled, setRegistrationDisabled] = useState(false)
 
+  // 源状态相关
+  const [sourceStatuses, setSourceStatuses] = useState<Record<string, { interval: number; lastFetch: string; lastCount: number; totalCount: number; status: string }>>({})
+  const [editingInterval, setEditingInterval] = useState<string | null>(null)
+  const [intervalValue, setIntervalValue] = useState<number>(10)
+
   useEffect(() => {
     fetchSources()
+    fetchSourceStatuses()
     if (isAdmin) {
       fetchUsers()
       fetchSettings()
@@ -55,6 +61,35 @@ export default function Settings() {
       console.error('获取新闻源失败:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSourceStatuses = async () => {
+    try {
+      const res = await crawlerApi.getStats()
+      const details = res.data.stats?.sourceDetails || []
+      const map: Record<string, any> = {}
+      for (const d of details) {
+        map[d.name] = d
+      }
+      setSourceStatuses(map)
+    } catch (error) {
+      console.error('获取源状态失败:', error)
+    }
+  }
+
+  const handleSetInterval = async (sourceName: string) => {
+    if (intervalValue < 5) {
+      alert('更新间隔最小为 5 分钟')
+      return
+    }
+    try {
+      await crawlerApi.setInterval(sourceName, intervalValue)
+      setEditingInterval(null)
+      fetchSourceStatuses()
+    } catch (error) {
+      console.error('设置更新频率失败:', error)
+      alert('设置失败')
     }
   }
 
@@ -288,59 +323,126 @@ export default function Settings() {
 
           {/* 新闻源列表 */}
           <div className="space-y-2 sm:space-y-3">
-            {sources.map((source) => (
+            {sources.map((source) => {
+              const status = sourceStatuses[source.name]
+              return (
               <div
                 key={source.id}
-                className="flex items-center justify-between p-2.5 sm:p-3 lg:p-4 bg-gray-50 rounded-lg"
+                className="p-2.5 sm:p-3 lg:p-4 bg-gray-50 rounded-lg"
               >
-                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
-                    {source.type === 'rss' ? (
-                      <Rss className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                    ) : (
-                      <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
-                      {source.isDefault && (
-                        <span className="badge badge-gray text-xs">默认</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center shrink-0">
+                      {source.type === 'rss' ? (
+                        <Rss className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                      ) : (
+                        <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                       )}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
-                      {source.url}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
+                        {source.isDefault && (
+                          <span className="badge badge-gray text-xs">默认</span>
+                        )}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
+                        {source.url}
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
+                    {/* 启用/禁用开关 */}
+                    <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
+                      <input
+                        type="checkbox"
+                        checked={source.isEnabled}
+                        onChange={() => handleToggle(source)}
+                        className="sr-only peer"
+                      />
+                      <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                      <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
+                        {source.isEnabled ? '启用' : '禁用'}
+                      </span>
+                    </label>
+
+                    {/* 删除按钮 */}
+                    {!source.isDefault && (
+                      <button
+                        onClick={() => handleRemove(source.id)}
+                        className="p-2 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
-                  {/* 启用/禁用开关 - 44px最小触摸区域 */}
-                  <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
-                    <input
-                      type="checkbox"
-                      checked={source.isEnabled}
-                      onChange={() => handleToggle(source)}
-                      className="sr-only peer"
-                    />
-                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
-                      {source.isEnabled ? '启用' : '禁用'}
+                {/* 源状态信息行 */}
+                {status && (
+                  <div className="mt-2 ml-12 sm:ml-13 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+                    <span className="flex items-center space-x-1">
+                      <Clock className="w-3 h-3" />
+                      <span>最后抓取: {status.lastFetch}</span>
                     </span>
-                  </label>
+                    <span>上次: {status.lastCount}条</span>
+                    <span>累计: {status.totalCount}条</span>
+                    <span className={status.status === '正常' ? 'text-green-500' : 'text-red-500'}>
+                      {status.status}
+                    </span>
+                  </div>
+                )}
 
-                  {/* 删除按钮 - 44px最小触摸区域 */}
-                  {!source.isDefault && (
+                {/* 更新频率设置 */}
+                <div className="mt-2 ml-12 sm:ml-13 flex items-center gap-2">
+                  <span className="text-xs text-gray-400">更新频率:</span>
+                  {editingInterval === source.name ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={5}
+                        max={120}
+                        value={intervalValue}
+                        onChange={(e) => setIntervalValue(Math.max(5, parseInt(e.target.value) || 5))}
+                        className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSetInterval(source.name)
+                          if (e.key === 'Escape') setEditingInterval(null)
+                        }}
+                      />
+                      <span className="text-xs text-gray-400">分钟</span>
+                      <button
+                        onClick={() => handleSetInterval(source.name)}
+                        className="p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                        title="保存"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setEditingInterval(null)}
+                        className="p-1 text-gray-400 hover:bg-gray-100 rounded transition-colors"
+                        title="取消"
+                      >
+                        <span className="text-xs">✕</span>
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => handleRemove(source.id)}
-                      className="p-2 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      onClick={() => {
+                        setEditingInterval(source.name)
+                        setIntervalValue(10)
+                      }}
+                      className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      点击设置
                     </button>
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* 恢复默认 */}
