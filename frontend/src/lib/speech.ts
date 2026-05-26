@@ -1,11 +1,22 @@
 // 语音播报工具 - 使用 Web Speech API
+// Chrome bug workaround: speechSynthesis 在页面打开 ~15秒后会进入假死状态
+// 解决方案: 使用定时器周期性 pause/resume 保持引擎活跃
 
-let voicesReady = false
-let speechAwakened = false
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null
 
 // 检查浏览器是否支持语音合成
 export function isSpeechSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
+}
+
+// 启动 Chrome 语音引擎保活定时器（每10秒 pause/resume 一次）
+function startKeepAlive(): void {
+  if (keepAliveTimer) return
+  keepAliveTimer = setInterval(() => {
+    if (window.speechSynthesis.speaking) return
+    window.speechSynthesis.pause()
+    window.speechSynthesis.resume()
+  }, 10000)
 }
 
 // 获取女声（优先选择中文女声）
@@ -13,7 +24,6 @@ function getFemaleVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (voices.length === 0) return null
 
-  // 优先选择中文女声
   const zhFemaleVoice = voices.find(
     (v) =>
       (v.lang.startsWith('zh') || v.lang.startsWith('cmn')) &&
@@ -28,31 +38,10 @@ function getFemaleVoice(): SpeechSynthesisVoice | null {
 
   if (zhFemaleVoice) return zhFemaleVoice
 
-  // 其次选择任何中文语音
   const zhVoice = voices.find((v) => v.lang.startsWith('zh') || v.lang.startsWith('cmn'))
   if (zhVoice) return zhVoice
 
-  // 最后选择默认语音
   return voices.find((v) => v.default) || voices[0] || null
-}
-
-// 唤醒语音引擎（Chrome 首次调用 speak 可能被静默吞掉）
-function wakeUpSpeech(): void {
-  if (!isSpeechSupported() || speechAwakened) return
-
-  const u = new SpeechSynthesisUtterance(' ')
-  u.volume = 0.01 // 几乎静音但不是0
-  u.rate = 10 // 最快速度
-  u.onend = () => {
-    speechAwakened = true
-    console.log('[语音] 引擎唤醒完成')
-  }
-  u.onerror = (e) => {
-    // 即使出错也标记为已尝试
-    speechAwakened = true
-    console.warn('[语音] 唤醒出错(可忽略):', e.error)
-  }
-  window.speechSynthesis.speak(u)
 }
 
 // 朗读文本
@@ -62,7 +51,7 @@ export function speak(text: string): void {
     return
   }
 
-  // Chrome bug: cancel() 后立即 speak() 会被静默吞掉，必须加延迟
+  // 停止当前播放
   window.speechSynthesis.cancel()
 
   const utterance = new SpeechSynthesisUtterance(text)
@@ -71,32 +60,21 @@ export function speak(text: string): void {
   if (voice) {
     utterance.voice = voice
     utterance.lang = voice.lang
-    console.log('[语音] 使用语音:', voice.name, voice.lang)
   } else {
     utterance.lang = 'zh-CN'
-    console.log('[语音] 使用默认语音, lang=zh-CN')
   }
 
   utterance.rate = 1.0
   utterance.pitch = 1.0
   utterance.volume = 1.0
 
-  utterance.onstart = () => {
-    console.log('[语音] 开始朗读')
-  }
-
-  utterance.onend = () => {
-    console.log('[语音] 朗读结束')
-  }
-
-  utterance.onerror = (e) => {
-    console.error('[语音] 朗读出错:', e.error)
-  }
-
-  // Chrome bug fix: cancel() 和 speak() 之间必须有延迟
+  // Chrome bug fix: cancel() 后必须延迟再 speak
   setTimeout(() => {
+    // 再次确保引擎活跃
+    window.speechSynthesis.pause()
+    window.speechSynthesis.resume()
     window.speechSynthesis.speak(utterance)
-  }, 100)
+  }, 200)
 }
 
 // 停止朗读
@@ -111,33 +89,11 @@ export function isSpeaking(): boolean {
   return isSpeechSupported() && window.speechSynthesis.speaking
 }
 
-// 初始化语音列表（某些浏览器需要异步加载）
+// 初始化
 export function initSpeech(): void {
-  if (!isSpeechSupported()) {
-    console.warn('[语音] 浏览器不支持 Web Speech API')
-    return
-  }
-
-  console.log('[语音] 初始化语音合成...')
-
-  const loadVoices = () => {
-    const voices = window.speechSynthesis.getVoices()
-    console.log('[语音] 可用语音数量:', voices.length)
-    if (voices.length > 0) {
-      voicesReady = true
-      // 延迟唤醒，确保引擎就绪
-      setTimeout(() => wakeUpSpeech(), 100)
-    }
-  }
-
-  loadVoices()
-
-  if (!voicesReady) {
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-      const voices = window.speechSynthesis.getVoices()
-      console.log('[语音] voiceschanged 事件, 可用语音数量:', voices.length)
-      voicesReady = true
-      setTimeout(() => wakeUpSpeech(), 100)
-    })
-  }
+  if (!isSpeechSupported()) return
+  // 预加载语音列表
+  window.speechSynthesis.getVoices()
+  // 启动保活定时器
+  startKeepAlive()
 }

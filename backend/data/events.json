@@ -13221,5 +13221,82 @@
     "lastPublishedAt": "2026-05-26T22:15:03.000Z",
     "createdAt": "2026-05-26T22:20:02.292Z",
     "id": 1197
+  },
+  {
+    "eventId": "6c7dc8c0f0316a0f",
+    "title": "一季度理财基金规模双降 钱去哪了？",
+    "category": "基金",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-25T23:53:25.000Z",
+    "lastPublishedAt": "2026-05-25T23:53:25.000Z",
+    "createdAt": "2026-05-26T22:30:03.023Z",
+    "id": 1198
+  },
+  {
+    "eventId": "b7d0d54444dd3353",
+    "title": "商业航天还需在何处发力",
+    "category": "宏观",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-25T23:56:03.000Z",
+    "lastPublishedAt": "2026-05-25T23:56:03.000Z",
+    "createdAt": "2026-05-26T22:30:03.068Z",
+    "id": 1199
+  },
+  {
+    "eventId": "582d855632e4872c",
+    "title": "5月26日电，xAI表示，旗下聊天机器人Grok现已面向所有SuperGrok和X Premium+用户开放测试版。",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-25T23:56:51.000Z",
+    "lastPublishedAt": "2026-05-25T23:56:51.000Z",
+    "createdAt": "2026-05-26T22:30:03.128Z",
+    "id": 1200
+  },
+  {
+    "eventId": "4e27dc65d696aea3",
+    "title": "有赞白鸦：AI 并没有杀死 SaaS 而是杀死“臃肿”",
+    "category": "行业",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-25T23:58:49.000Z",
+    "lastPublishedAt": "2026-05-25T23:58:49.000Z",
+    "createdAt": "2026-05-26T22:30:03.181Z",
+    "id": 1201
+  },
+  {
+    "eventId": "cffeb933c0f35e01",
+    "title": "锦和商管：公司经营情况稳定 与水气石合同履行依然有效",
+    "category": "宏观",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T00:01:48.000Z",
+    "lastPublishedAt": "2026-05-26T00:01:48.000Z",
+    "createdAt": "2026-05-26T22:30:03.231Z",
+    "id": 1202
+  },
+  {
+    "eventId": "d44df432bfe919b2",
+    "title": "中巴ETF互通落地一周年，上交所举办巴西专场路演深化跨境合作",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T22:25:05.000Z",
+    "lastPublishedAt": "2026-05-26T22:25:05.000Z",
+    "createdAt": "2026-05-26T22:30:03.512Z",
+    "id": 1203
+  },
+  {
+    "eventId": "536782ba1dfe5400",
+    "title": "这些码不能随便扫 国家安全部提示",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T22:27:22.000Z",
+    "lastPublishedAt": "2026-05-26T22:27:22.000Z",
+    "createdAt": "2026-05-26T22:30:03.555Z",
+    "id": 1204
   }
 ]
