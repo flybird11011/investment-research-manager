@@ -98,21 +98,34 @@ export async function initDefaultSources() {
       }
       console.log('✅ 默认新闻源已初始化');
     } else {
-      // 非首次启动：更新默认源的编码配置（不影响用户自定义源）
+      // 非首次启动：补充缺失的默认源 + 更新编码配置
       let updated = 0;
+      let added = 0;
       for (const defaultSource of DEFAULT_SOURCES) {
         const existing = existingSources.find(
           (s: any) => s.name === defaultSource.name
         );
-        if (existing && existing.encoding !== defaultSource.encoding) {
+        if (!existing) {
+          // 补充缺失的默认源
+          create('newsSources', {
+            name: defaultSource.name,
+            url: defaultSource.url,
+            type: defaultSource.type,
+            category: defaultSource.category,
+            encoding: defaultSource.encoding || 'utf-8',
+            isEnabled: true,
+            isDefault: true,
+          });
+          added++;
+        } else if (existing.encoding !== defaultSource.encoding) {
+          // 更新编码配置
           const { update } = require('../db/jsonDb');
           update('newsSources', existing.id, { encoding: defaultSource.encoding } as any);
           updated++;
         }
       }
-      if (updated > 0) {
-        console.log(`✅ 已更新 ${updated} 个默认新闻源的编码配置`);
-      }
+      if (added > 0) console.log(`✅ 已补充 ${added} 个默认新闻源`);
+      if (updated > 0) console.log(`✅ 已更新 ${updated} 个默认新闻源的编码配置`);
     }
   } catch (error) {
     console.error('初始化默认新闻源失败:', error);
