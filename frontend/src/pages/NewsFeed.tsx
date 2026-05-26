@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, RefreshCw, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { newsApi, eventsApi } from '../lib/api'
@@ -29,41 +29,122 @@ interface EventItem {
 }
 
 const categories = ['全部', '股票', '基金', '宏观', '行业', '其他']
+const PAGE_SIZE = 20
 
 export default function NewsFeed() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [news, setNews] = useState<NewsItem[]>([])
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [activeTab, setActiveTab] = useState<'news' | 'events'>('events')
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [searchQuery, setSearchQuery] = useState('')
 
+  const newsPageRef = useRef(1)
+  const eventsPageRef = useRef(1)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
   const categoryParam = searchParams.get('category') || '全部'
+
+  const fetchEvents = useCallback(async (page: number, append: boolean = false) => {
+    try {
+      const category = selectedCategory === '全部' ? undefined : selectedCategory
+      const res = await eventsApi.getList({ category, limit: PAGE_SIZE, page: page.toString() })
+      const items = res.data.data
+      if (append) {
+        setEvents(prev => [...prev, ...items])
+      } else {
+        setEvents(items)
+      }
+      setHasMore(items.length === PAGE_SIZE)
+      eventsPageRef.current = page
+    } catch (error) {
+      console.error('获取事件失败:', error)
+    }
+  }, [selectedCategory])
+
+  const fetchNews = useCallback(async (page: number, append: boolean = false) => {
+    try {
+      const category = selectedCategory === '全部' ? undefined : selectedCategory
+      const res = await newsApi.getList({ category, limit: PAGE_SIZE, page: page.toString() })
+      const { data: items, total } = res.data
+      if (append) {
+        setNews(prev => [...prev, ...items])
+      } else {
+        setNews(items)
+      }
+      setTotalCount(total)
+      setHasMore(items.length === PAGE_SIZE)
+      newsPageRef.current = page
+    } catch (error) {
+      console.error('获取资讯失败:', error)
+    }
+  }, [selectedCategory])
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    newsPageRef.current = 1
+    eventsPageRef.current = 1
+    setHasMore(true)
+    await Promise.all([
+      fetchEvents(1),
+      fetchNews(1),
+    ])
+    setLoading(false)
+  }, [fetchEvents, fetchNews])
 
   useEffect(() => {
     setSelectedCategory(categoryParam)
-    fetchData()
   }, [categoryParam])
 
-  const fetchData = async () => {
+  useEffect(() => {
+    newsPageRef.current = 1
+    eventsPageRef.current = 1
+    setHasMore(true)
+    setNews([])
+    setEvents([])
     setLoading(true)
-    try {
-      const category = selectedCategory === '全部' ? undefined : selectedCategory
+    Promise.all([
+      fetchEvents(1),
+      fetchNews(1),
+    ]).finally(() => setLoading(false))
+  }, [selectedCategory, fetchEvents, fetchNews])
 
-      // 获取聚合事件
-      const eventsRes = await eventsApi.getList({ category, limit: 20 })
-      setEvents(eventsRes.data.data)
-
-      // 获取最新资讯
-      const newsRes = await newsApi.getList({ category, limit: 20 })
-      setNews(newsRes.data.data)
-    } catch (error) {
-      console.error('获取数据失败:', error)
-    } finally {
-      setLoading(false)
+  // 无限滚动
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect()
     }
-  }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          if (activeTab === 'news') {
+            setLoadingMore(true)
+            fetchNews(newsPageRef.current + 1, true).finally(() => setLoadingMore(false))
+          } else {
+            setLoadingMore(true)
+            fetchEvents(eventsPageRef.current + 1, true).finally(() => setLoadingMore(false))
+          }
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current)
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [hasMore, loadingMore, loading, activeTab, fetchNews, fetchEvents])
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category)
@@ -78,7 +159,6 @@ export default function NewsFeed() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      // 执行搜索
       newsApi.search(searchQuery).then(res => {
         setNews(res.data.data)
         setActiveTab('news')
@@ -93,6 +173,9 @@ export default function NewsFeed() {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">资讯流</h1>
 
         <div className="flex flex-wrap items-center space-x-2">
+          <span className="text-xs text-gray-400">
+            {activeTab === 'news' ? `共 ${totalCount} 条` : `${events.length} 条事件`}
+          </span>
           <button
             onClick={fetchData}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -165,7 +248,6 @@ export default function NewsFeed() {
       ) : (
         <div className="space-y-3 sm:space-y-4">
           {activeTab === 'events' ? (
-            // 聚合事件列表
             events.length > 0 ? (
               events.map((event) => (
                 <div key={event.eventId} className="card hover:shadow-md transition-shadow">
@@ -202,7 +284,6 @@ export default function NewsFeed() {
               </div>
             )
           ) : (
-            // 最新资讯列表
             news.length > 0 ? (
               news.map((item) => (
                 <div key={item.id} className="card hover:shadow-md transition-shadow">
@@ -265,6 +346,21 @@ export default function NewsFeed() {
               </div>
             )
           )}
+
+          {/* 加载更多触发器 */}
+          <div ref={loadMoreRef} className="py-4 text-center">
+            {loadingMore && (
+              <div className="flex items-center justify-center space-x-2 text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
+                <span className="text-sm">加载更多...</span>
+              </div>
+            )}
+            {!hasMore && (news.length > 0 || events.length > 0) && (
+              <span className="text-sm text-gray-400">
+                已加载全部 {activeTab === 'news' ? news.length : events.length} 条
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
