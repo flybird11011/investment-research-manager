@@ -134,7 +134,10 @@ async function fetchFromRSS(source: any) {
       });
       
       // 转换编码
-      const xmlString = convertEncoding(Buffer.from(response.data), source.encoding);
+      let xmlString = convertEncoding(Buffer.from(response.data), source.encoding);
+      
+      // 移除XML声明中的encoding属性，防止rss-parser重复解码
+      xmlString = xmlString.replace(/<\?xml[^>]*encoding=["'][^"']*["'][^>]*\?>/g, '<?xml version="1.0" encoding="UTF-8"?>');
       
       // 解析XML
       const feed = await rssParser.parseString(xmlString);
