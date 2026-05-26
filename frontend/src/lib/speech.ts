@@ -1,5 +1,7 @@
 // 语音播报工具 - 使用 Web Speech API
 
+let voicesReady = false
+
 // 检查浏览器是否支持语音合成
 export function isSpeechSupported(): boolean {
   return 'speechSynthesis' in window
@@ -8,6 +10,7 @@ export function isSpeechSupported(): boolean {
 // 获取女声（优先选择中文女声）
 function getFemaleVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
+  if (voices.length === 0) return null
 
   // 优先选择中文女声
   const zhFemaleVoice = voices.find(
@@ -32,6 +35,23 @@ function getFemaleVoice(): SpeechSynthesisVoice | null {
   return voices.find((v) => v.default) || voices[0] || null
 }
 
+// 唤醒语音引擎（Chrome 首次调用 speak 可能被静默吞掉）
+function wakeUpSpeech(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!isSpeechSupported()) {
+      resolve()
+      return
+    }
+    const u = new SpeechSynthesisUtterance('')
+    u.volume = 0 // 静音
+    u.onend = () => resolve()
+    u.onerror = () => resolve()
+    // 超时保底
+    setTimeout(resolve, 200)
+    window.speechSynthesis.speak(u)
+  })
+}
+
 // 朗读文本
 export function speak(text: string): void {
   if (!isSpeechSupported()) {
@@ -52,10 +72,13 @@ export function speak(text: string): void {
     utterance.lang = 'zh-CN'
   }
 
-  // 设置语速（默认 1.0）
   utterance.rate = 1.0
   utterance.pitch = 1.0
   utterance.volume = 1.0
+
+  utterance.onerror = (e) => {
+    console.error('语音播报出错:', e)
+  }
 
   window.speechSynthesis.speak(utterance)
 }
@@ -76,13 +99,18 @@ export function isSpeaking(): boolean {
 export function initSpeech(): void {
   if (!isSpeechSupported()) return
 
-  // 强制加载语音列表
-  window.speechSynthesis.getVoices()
+  const loadVoices = () => {
+    const voices = window.speechSynthesis.getVoices()
+    if (voices.length > 0) {
+      voicesReady = true
+      // Chrome bug workaround: 首次调用 speak 可能被吞掉，先唤醒
+      wakeUpSpeech()
+    }
+  }
 
-  // 如果语音列表为空，监听 voiceschanged 事件
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-      window.speechSynthesis.getVoices()
-    })
+  loadVoices()
+
+  if (!voicesReady) {
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
   }
 }
