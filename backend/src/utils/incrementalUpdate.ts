@@ -227,6 +227,7 @@ export function getIncrementalStats(): {
     lastCount: number;
     totalCount: number;
     status: string;
+    interval: number;
   }>;
 } {
   const statuses = findAll<any>('sourceStatus');
@@ -241,6 +242,7 @@ export function getIncrementalStats(): {
     status: s.lastErrorTime && new Date(s.lastErrorTime) > new Date(s.lastSuccessTime)
       ? '错误'
       : '正常',
+    interval: s.updateInterval || DEFAULT_UPDATE_INTERVAL,
   }));
   
   // 找到最近的更新时间

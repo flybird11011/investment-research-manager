@@ -11316,5 +11316,115 @@
     "lastPublishedAt": "2026-05-26T15:25:27.000Z",
     "createdAt": "2026-05-26T15:30:04.915Z",
     "id": 1024
+  },
+  {
+    "eventId": "52af44071b544201",
+    "title": "高通涨幅扩大至将近8%",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T14:46:32.000Z",
+    "lastPublishedAt": "2026-05-26T14:46:32.000Z",
+    "createdAt": "2026-05-26T15:34:29.056Z",
+    "id": 1025
+  },
+  {
+    "eventId": "b855f8b858b82583",
+    "title": "美光市值达到1万亿美元，日内当前涨约19%",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T14:35:35.000Z",
+    "lastPublishedAt": "2026-05-26T14:35:35.000Z",
+    "createdAt": "2026-05-26T15:34:29.104Z",
+    "id": 1026
+  },
+  {
+    "eventId": "8533b9d8e38147cd",
+    "title": "白宫国家经济委员会主任哈塞特：霍尔木兹一旦开放，能源价格将会下降。 股市欢庆是因为生产力如此之高。 一旦海峡开放，消费者就能感受到油价的下跌。 密歇根大学调查是",
+    "category": "宏观",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T12:04:19.000Z",
+    "lastPublishedAt": "2026-05-26T12:04:19.000Z",
+    "createdAt": "2026-05-26T15:34:29.168Z",
+    "id": 1027
+  },
+  {
+    "eventId": "5d23b006afa5cc48",
+    "title": "三星成为韩国借款规模最大企业",
+    "category": "行业",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T11:31:37.000Z",
+    "lastPublishedAt": "2026-05-26T11:31:37.000Z",
+    "createdAt": "2026-05-26T15:34:29.209Z",
+    "id": 1028
+  },
+  {
+    "eventId": "dc5d4bbc96da7eb4",
+    "title": "兆易创新：持有长鑫科技1.80%股份，对其上市净利润无直接影响",
+    "category": "股票",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T11:18:52.000Z",
+    "lastPublishedAt": "2026-05-26T11:18:52.000Z",
+    "createdAt": "2026-05-26T15:34:29.260Z",
+    "id": 1029
+  },
+  {
+    "eventId": "3a34515244556d42",
+    "title": "上纬新材：彭志辉先生不参与具体研发工作，消费级具身智能机器人业务存在不确定性",
+    "category": "行业",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T11:02:10.000Z",
+    "lastPublishedAt": "2026-05-26T11:02:10.000Z",
+    "createdAt": "2026-05-26T15:34:29.322Z",
+    "id": 1030
+  },
+  {
+    "eventId": "be6e57c2e89167f3",
+    "title": "报道：礼来拟斥资近40亿美元收购三家疫苗研发企业",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T10:38:34.000Z",
+    "lastPublishedAt": "2026-05-26T10:38:34.000Z",
+    "createdAt": "2026-05-26T15:34:29.381Z",
+    "id": 1031
+  },
+  {
+    "eventId": "2754096bedacb9ca",
+    "title": "廖岷会见美国副贸易代表斯威策",
+    "category": "宏观",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T10:33:32.000Z",
+    "lastPublishedAt": "2026-05-26T10:33:32.000Z",
+    "createdAt": "2026-05-26T15:34:29.423Z",
+    "id": 1032
+  },
+  {
+    "eventId": "36f3e1e69645b717",
+    "title": "五角大楼同意SpaceX对星链使用服务的涨价，此次涨价适用于美国Lucas无人机对星链的使用。（路透）",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T10:17:58.000Z",
+    "lastPublishedAt": "2026-05-26T10:17:58.000Z",
+    "createdAt": "2026-05-26T15:34:29.493Z",
+    "id": 1033
+  },
+  {
+    "eventId": "925b8ffd1d451312",
+    "title": "小米集团：实施200亿港元股份购回计划",
+    "category": "其他",
+    "relatedStocks": [],
+    "newsCount": 1,
+    "firstPublishedAt": "2026-05-26T09:48:26.000Z",
+    "lastPublishedAt": "2026-05-26T09:48:26.000Z",
+    "createdAt": "2026-05-26T15:34:29.572Z",
+    "id": 1034
   }
 ]

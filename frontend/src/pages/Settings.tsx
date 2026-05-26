@@ -429,15 +429,17 @@ export default function Settings() {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => {
-                        setEditingInterval(source.name)
-                        setIntervalValue(10)
-                      }}
-                      className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
-                    >
-                      点击设置
-                    </button>
+                     <button
+                       onClick={() => {
+                         setEditingInterval(source.name)
+                         setIntervalValue(sourceStatuses[source.name]?.interval || 10)
+                       }}
+                       className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
+                     >
+                       {sourceStatuses[source.name]?.interval
+                         ? `每 ${sourceStatuses[source.name].interval} 分钟`
+                         : '点击设置'}
+                     </button>
                   )}
                 </div>
               </div>
