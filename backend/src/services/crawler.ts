@@ -39,7 +39,7 @@ const DEFAULT_SOURCES = [
     url: 'http://rss.sina.com.cn/finance/gjcj.xml',
     type: 'rss',
     category: 'macro',
-    encoding: 'utf-8', // 新浪RSS已切换为UTF-8编码
+    encoding: 'utf-8',
   },
   {
     name: '新浪财经-国内财经',
@@ -53,6 +53,27 @@ const DEFAULT_SOURCES = [
     url: 'http://rss.sina.com.cn/finance/roll/newindex.xml',
     type: 'rss',
     category: 'macro',
+    encoding: 'utf-8',
+  },
+  {
+    name: '新浪财经-7x24快讯',
+    url: 'https://finance.sina.com.cn/7x24/',
+    type: 'sina7x24',
+    category: 'macro',
+    encoding: 'utf-8',
+  },
+  {
+    name: '云财经-7x24内参快讯',
+    url: 'https://www.yuncaijing.com/insider/simple.html',
+    type: 'yuncaijing',
+    category: 'stock',
+    encoding: 'utf-8',
+  },
+  {
+    name: '股掌柜-7x24聚合消息',
+    url: 'https://724.guzhang.com/',
+    type: 'guzhang',
+    category: 'stock',
     encoding: 'utf-8',
   },
 ];
