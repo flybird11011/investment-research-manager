@@ -83,7 +83,7 @@ export function findWhere<T>(table: TableName, predicate: (item: T) => boolean):
   return items.filter(predicate);
 }
 
-export function update<T extends { id: number }>(table: TableName, id: number, data: Partial<T>): T | null {
+export function update<T extends { id: number }>(table: TableName, id: number, data: Partial<T> & Record<string, any>): T | null {
   const items = readJson<T[]>(FILES[table], []);
   const index = items.findIndex(item => item.id === id);
   if (index === -1) return null;
