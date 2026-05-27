@@ -59,7 +59,7 @@ export default function NewsFeed() {
   const fetchEvents = useCallback(async (page: number, append: boolean = false) => {
     try {
       const category = selectedCategory === '全部' ? undefined : selectedCategory
-      const res = await eventsApi.getList({ category, limit: PAGE_SIZE, page: page.toString() })
+      const res = await eventsApi.getList({ category, limit: PAGE_SIZE, page })
       const items = res.data.data
       if (append) {
         setEvents(prev => [...prev, ...items])
@@ -76,7 +76,7 @@ export default function NewsFeed() {
   const fetchNews = useCallback(async (page: number, append: boolean = false) => {
     try {
       const category = selectedCategory === '全部' ? undefined : selectedCategory
-      const res = await newsApi.getList({ category, limit: PAGE_SIZE, page: page.toString() })
+      const res = await newsApi.getList({ category, limit: PAGE_SIZE, page })
       const { data: items, total } = res.data
 
       // 语音播报：检测新新闻（非首次加载且非翻页时）

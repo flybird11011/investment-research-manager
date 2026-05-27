@@ -30,7 +30,7 @@ export default function FlashMode() {
     }
 
     try {
-      const res = await newsApi.getList({ limit: PAGE_SIZE, page: page.toString() })
+      const res = await newsApi.getList({ limit: PAGE_SIZE, page })
       const { data: items, total } = res.data
 
       if (append) {
@@ -59,7 +59,7 @@ export default function FlashMode() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await newsApi.getList({ limit: PAGE_SIZE, page: '1' })
+        const res = await newsApi.getList({ limit: PAGE_SIZE, page: 1 })
         const newItems = res.data.data
         setNews(prev => {
           const existingIds = new Set(prev.map(n => n.id))
