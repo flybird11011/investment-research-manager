@@ -12,6 +12,32 @@ interface NewsItem {
 
 const PAGE_SIZE = 30
 
+function getPublishedTime(item: NewsItem): number {
+  const time = new Date(item.publishedAt).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function sortNewsByPublishedAtDesc(items: NewsItem[]): NewsItem[] {
+  return [...items].sort((a, b) => {
+    const timeDiff = getPublishedTime(b) - getPublishedTime(a)
+    if (timeDiff !== 0) return timeDiff
+    return b.id - a.id
+  })
+}
+
+function mergeNewsByPublishedAtDesc(current: NewsItem[], incoming: NewsItem[]): NewsItem[] {
+  const byId = new Map<number, NewsItem>()
+
+  for (const item of current) {
+    byId.set(item.id, item)
+  }
+  for (const item of incoming) {
+    byId.set(item.id, item)
+  }
+
+  return sortNewsByPublishedAtDesc(Array.from(byId.values()))
+}
+
 export default function FlashMode() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -33,14 +59,14 @@ export default function FlashMode() {
       const res = await newsApi.getList({ limit: PAGE_SIZE, page })
       const { data: items, total } = res.data
 
-      if (append) {
-        setNews(prev => [...prev, ...items])
-      } else {
-        setNews(items)
-      }
+      setNews(prev => {
+        return append
+          ? mergeNewsByPublishedAtDesc(prev, items)
+          : sortNewsByPublishedAtDesc(items)
+      })
 
       setTotalCount(total)
-      setHasMore(items.length === PAGE_SIZE && news.length + items.length < total)
+      setHasMore(items.length === PAGE_SIZE)
       pageRef.current = page
     } catch (error) {
       console.error('获取资讯失败:', error)
@@ -61,11 +87,7 @@ export default function FlashMode() {
       try {
         const res = await newsApi.getList({ limit: PAGE_SIZE, page: 1 })
         const newItems = res.data.data
-        setNews(prev => {
-          const existingIds = new Set(prev.map(n => n.id))
-          const unique = newItems.filter((n: NewsItem) => !existingIds.has(n.id))
-          return [...unique, ...prev]
-        })
+        setNews(prev => mergeNewsByPublishedAtDesc(prev, newItems))
         setTotalCount(res.data.total)
       } catch (error) {
         console.error('自动刷新失败:', error)
