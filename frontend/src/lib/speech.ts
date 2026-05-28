@@ -68,13 +68,16 @@ export function speak(text: string): void {
   utterance.pitch = 1.0
   utterance.volume = 1.0
 
+  // Chrome/Edge 自动播放策略：需要用户交互后才能播放
+  // 使用 resume() 解锁音频上下文
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume()
+  }
+
   // Chrome bug fix: cancel() 后必须延迟再 speak
   setTimeout(() => {
-    // 再次确保引擎活跃
-    window.speechSynthesis.pause()
-    window.speechSynthesis.resume()
     window.speechSynthesis.speak(utterance)
-  }, 200)
+  }, 100)
 }
 
 // 停止朗读
