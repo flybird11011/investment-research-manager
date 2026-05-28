@@ -10,7 +10,7 @@ services:
     expose:
       - "3001"
     volumes:
-      - ./data:/app/backend/data
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=3001

@@ -24,6 +24,13 @@ fi
 # 创建数据目录
 mkdir -p data
 
+# 兼容旧版本：旧 compose 挂载路径不正确时，运行数据可能留在容器内。
+if docker ps -a --format '{{.Names}}' | grep -q '^investment-backend$'; then
+    echo "💾 备份旧容器数据到 ./data ..."
+    docker cp investment-backend:/app/data/. ./data/ 2>/dev/null || true
+    docker cp investment-backend:/app/backend/data/. ./data/ 2>/dev/null || true
+fi
+
 # 停止旧容器
 echo "🛑 停止旧容器..."
 docker-compose down 2>/dev/null || true

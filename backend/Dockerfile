@@ -3,6 +3,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Native SQLite driver dependencies
+RUN apk add --no-cache python3 make g++
+
 # 安装依赖（包括 devDependencies 用于编译）
 COPY package*.json ./
 RUN npm ci
