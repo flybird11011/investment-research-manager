@@ -3,6 +3,9 @@
 // 解决方案: 使用定时器周期性 pause/resume 保持引擎活跃
 
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null
+let currentUtterance: SpeechSynthesisUtterance | null = null
+let speakTimer: ReturnType<typeof setTimeout> | null = null
+let speakRequestId = 0
 
 // 检查浏览器是否支持语音合成
 export function isSpeechSupported(): boolean {
@@ -13,7 +16,7 @@ export function isSpeechSupported(): boolean {
 function startKeepAlive(): void {
   if (keepAliveTimer) return
   keepAliveTimer = setInterval(() => {
-    if (window.speechSynthesis.speaking) return
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return
     window.speechSynthesis.pause()
     window.speechSynthesis.resume()
   }, 10000)
@@ -44,6 +47,28 @@ function getFemaleVoice(): SpeechSynthesisVoice | null {
   return voices.find((v) => v.default) || voices[0] || null
 }
 
+function waitForCancelToSettle(callback: () => void): void {
+  const startedAt = Date.now()
+
+  const check = () => {
+    const synth = window.speechSynthesis
+    if (!synth.speaking && !synth.pending) {
+      callback()
+      return
+    }
+
+    if (Date.now() - startedAt > 500) {
+      console.warn('[语音] 等待上一次朗读停止超时，继续尝试播放')
+      callback()
+      return
+    }
+
+    setTimeout(check, 50)
+  }
+
+  check()
+}
+
 // 朗读文本
 export function speak(text: string): void {
   if (!isSpeechSupported()) {
@@ -51,10 +76,23 @@ export function speak(text: string): void {
     return
   }
 
-  // 停止当前播放
-  window.speechSynthesis.cancel()
+  const content = text.trim()
+  if (!content) return
 
-  const utterance = new SpeechSynthesisUtterance(text)
+  const requestId = ++speakRequestId
+
+  if (speakTimer) {
+    clearTimeout(speakTimer)
+    speakTimer = null
+  }
+
+  const synth = window.speechSynthesis
+  const shouldCancel = synth.speaking || synth.pending
+  if (shouldCancel) {
+    synth.cancel()
+  }
+
+  const utterance = new SpeechSynthesisUtterance(content)
   const voice = getFemaleVoice()
 
   if (voice) {
@@ -68,28 +106,60 @@ export function speak(text: string): void {
   utterance.pitch = 1.0
   utterance.volume = 1.0
 
-  // Chrome/Edge 自动播放策略：需要用户交互后才能播放
-  // 使用 resume() 解锁音频上下文
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume()
+  utterance.onstart = () => {
+    console.log('[语音] 开始朗读')
   }
 
-  // Chrome bug fix: cancel() 后必须延迟再 speak
-  setTimeout(() => {
-    window.speechSynthesis.speak(utterance)
-  }, 100)
+  utterance.onend = () => {
+    currentUtterance = null
+    console.log('[语音] 朗读结束')
+  }
+
+  utterance.onerror = (event) => {
+    currentUtterance = null
+    console.warn('[语音] 朗读出错:', event.error)
+  }
+
+  currentUtterance = utterance
+
+  const play = () => {
+    if (requestId !== speakRequestId) return
+
+    if (synth.paused) {
+      synth.resume()
+    }
+
+    speakTimer = setTimeout(() => {
+      if (requestId !== speakRequestId) return
+      synth.resume()
+      synth.speak(utterance)
+      speakTimer = null
+    }, shouldCancel ? 200 : 0)
+  }
+
+  if (shouldCancel) {
+    waitForCancelToSettle(play)
+  } else {
+    play()
+  }
 }
 
 // 停止朗读
 export function stop(): void {
   if (isSpeechSupported()) {
+    speakRequestId++
+    if (speakTimer) {
+      clearTimeout(speakTimer)
+      speakTimer = null
+    }
     window.speechSynthesis.cancel()
+    currentUtterance = null
   }
 }
 
 // 检查是否正在朗读
 export function isSpeaking(): boolean {
-  return isSpeechSupported() && window.speechSynthesis.speaking
+  return isSpeechSupported() && (window.speechSynthesis.speaking || currentUtterance !== null)
 }
 
 // 初始化
