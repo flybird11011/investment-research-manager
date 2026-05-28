@@ -32,6 +32,46 @@ const rssParser = new Parser({
   },
 });
 
+export function parseChinaLocalDateTime(value: string): string | null {
+  const match = value.trim().match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/
+  );
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute, second = '0'] = match;
+  const parts = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+    second: Number(second),
+  };
+
+  const chinaLocalTimestamp = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+  const chinaLocalDate = new Date(chinaLocalTimestamp);
+
+  if (
+    chinaLocalDate.getUTCFullYear() !== parts.year ||
+    chinaLocalDate.getUTCMonth() !== parts.month - 1 ||
+    chinaLocalDate.getUTCDate() !== parts.day ||
+    chinaLocalDate.getUTCHours() !== parts.hour ||
+    chinaLocalDate.getUTCMinutes() !== parts.minute ||
+    chinaLocalDate.getUTCSeconds() !== parts.second
+  ) {
+    return null;
+  }
+
+  return new Date(chinaLocalTimestamp - 8 * 60 * 60 * 1000).toISOString();
+}
+
 // 支持的RSS源配置 - 包含编码信息
 const DEFAULT_SOURCES = [
   {
@@ -311,11 +351,9 @@ async function fetchFromSina7x24(source: any) {
       let publishedAt = new Date().toISOString();
       const createTime = item?.create_time;
       if (createTime) {
-        // create_time 格式可能是 "2026-05-25 17:13:31"
-        const date = new Date(createTime);
-        if (!isNaN(date.getTime())) {
-          publishedAt = date.toISOString();
-        }
+        // create_time 是北京时间字符串，例如 "2026-05-25 17:13:31"。
+        // 不能直接 new Date(createTime)，否则 UTC 服务器会把它解析成未来 8 小时。
+        publishedAt = parseChinaLocalDateTime(createTime) || publishedAt;
       }
 
       // 提取标题（取前80个字符）
