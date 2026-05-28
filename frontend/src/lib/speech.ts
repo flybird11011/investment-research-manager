@@ -69,6 +69,20 @@ function waitForCancelToSettle(callback: () => void): void {
   check()
 }
 
+function speakNow(
+  synth: SpeechSynthesis,
+  utterance: SpeechSynthesisUtterance,
+  requestId: number
+): void {
+  if (requestId !== speakRequestId) return
+
+  if (synth.paused) {
+    synth.resume()
+  }
+
+  synth.speak(utterance)
+}
+
 // 朗读文本
 export function speak(text: string): void {
   if (!isSpeechSupported()) {
@@ -125,16 +139,15 @@ export function speak(text: string): void {
   const play = () => {
     if (requestId !== speakRequestId) return
 
-    if (synth.paused) {
-      synth.resume()
+    if (!shouldCancel) {
+      speakNow(synth, utterance, requestId)
+      return
     }
 
     speakTimer = setTimeout(() => {
-      if (requestId !== speakRequestId) return
-      synth.resume()
-      synth.speak(utterance)
+      speakNow(synth, utterance, requestId)
       speakTimer = null
-    }, shouldCancel ? 200 : 0)
+    }, 200)
   }
 
   if (shouldCancel) {

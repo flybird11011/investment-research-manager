@@ -31,6 +31,7 @@ interface EventItem {
 
 const categories = ['全部', '股票', '基金', '宏观', '行业', '其他']
 const PAGE_SIZE = 20
+const SPEECH_REFRESH_INTERVAL_MS = 60 * 1000
 
 export default function NewsFeed() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -136,6 +137,17 @@ export default function NewsFeed() {
       fetchNews(1),
     ]).finally(() => setLoading(false))
   }, [selectedCategory, fetchEvents, fetchNews])
+
+  useEffect(() => {
+    if (!speechEnabled) return
+
+    const interval = window.setInterval(() => {
+      if (document.hidden) return
+      fetchNews(1)
+    }, SPEECH_REFRESH_INTERVAL_MS)
+
+    return () => window.clearInterval(interval)
+  }, [speechEnabled, fetchNews])
 
   // 无限滚动
   useEffect(() => {
