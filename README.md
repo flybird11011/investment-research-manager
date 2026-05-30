@@ -9,6 +9,7 @@
 - **自选股管理** - 添加关注的股票，自动高亮相关资讯
 - **快讯模式** - 极简视图，快速浏览最新资讯
 - **自定义新闻源** - 支持添加 RSS 源，个性化资讯来源
+- **语音播报** - 基于 `edge-tts` 的新闻朗读，不需要额外的 TTS 付费 Key
 - **研报中心** - 整合研究报告，支持 AI 智能摘要
   - 上传 PDF 自动解析
   - AI 提取核心投资逻辑
@@ -62,6 +63,7 @@ cp .env.example .env
 # - 数据库连接 (DATABASE_URL)
 # - Redis 连接 (REDIS_URL)
 # - OpenAI API 密钥 (OPENAI_API_KEY) - 用于 AI 研报摘要
+# - 语音播报使用 Docker 内置的 edge-tts，无需额外 TTS Key
 ```
 
 4. 初始化数据库

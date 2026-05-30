@@ -1,185 +1,137 @@
-// 语音播报工具 - 使用 Web Speech API
-// Chrome bug workaround: speechSynthesis 在页面打开 ~15秒后会进入假死状态
-// 解决方案: 使用定时器周期性 pause/resume 保持引擎活跃
-
-let keepAliveTimer: ReturnType<typeof setInterval> | null = null
-let currentUtterance: SpeechSynthesisUtterance | null = null
-let speakTimer: ReturnType<typeof setTimeout> | null = null
+let currentAudio: HTMLAudioElement | null = null
+let currentObjectUrl: string | null = null
+let currentAbortController: AbortController | null = null
 let speakRequestId = 0
 
-// 检查浏览器是否支持语音合成
+const TTS_VOICE = 'zh-CN-XiaoxiaoNeural'
+
 export function isSpeechSupported(): boolean {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window
+  return typeof window !== 'undefined' && typeof Audio !== 'undefined' && typeof fetch !== 'undefined'
 }
 
-// 启动 Chrome 语音引擎保活定时器（每10秒 pause/resume 一次）
-function startKeepAlive(): void {
-  if (keepAliveTimer) return
-  keepAliveTimer = setInterval(() => {
-    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return
-    window.speechSynthesis.pause()
-    window.speechSynthesis.resume()
-  }, 10000)
-}
-
-// 获取女声（优先选择中文女声）
-function getFemaleVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices()
-  if (voices.length === 0) return null
-
-  const zhFemaleVoice = voices.find(
-    (v) =>
-      (v.lang.startsWith('zh') || v.lang.startsWith('cmn')) &&
-      (v.name.includes('女') ||
-        v.name.includes('Female') ||
-        v.name.includes('Xiaoxiao') ||
-        v.name.includes('Xiaoyi') ||
-        v.name.includes('Tingting') ||
-        v.name.includes('Huihui') ||
-        v.name.includes('Yaoyao'))
-  )
-
-  if (zhFemaleVoice) return zhFemaleVoice
-
-  const zhVoice = voices.find((v) => v.lang.startsWith('zh') || v.lang.startsWith('cmn'))
-  if (zhVoice) return zhVoice
-
-  return voices.find((v) => v.default) || voices[0] || null
-}
-
-function waitForCancelToSettle(callback: () => void): void {
-  const startedAt = Date.now()
-
-  const check = () => {
-    const synth = window.speechSynthesis
-    if (!synth.speaking && !synth.pending) {
-      callback()
-      return
-    }
-
-    if (Date.now() - startedAt > 500) {
-      console.warn('[语音] 等待上一次朗读停止超时，继续尝试播放')
-      callback()
-      return
-    }
-
-    setTimeout(check, 50)
+function cleanupPlayback(): void {
+  if (currentAbortController) {
+    currentAbortController.abort()
+    currentAbortController = null
   }
 
-  check()
-}
-
-function speakNow(
-  synth: SpeechSynthesis,
-  utterance: SpeechSynthesisUtterance,
-  requestId: number
-): void {
-  if (requestId !== speakRequestId) return
-
-  if (synth.paused) {
-    synth.resume()
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.onended = null
+    currentAudio.onerror = null
+    currentAudio.src = ''
+    currentAudio.load()
+    currentAudio = null
   }
 
-  synth.speak(utterance)
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl)
+    currentObjectUrl = null
+  }
+}
+
+function normalizeText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ')
+}
+
+async function fetchSpeechAudio(text: string, requestId: number): Promise<Blob> {
+  if (currentAbortController) {
+    currentAbortController.abort()
+  }
+
+  const controller = new AbortController()
+  currentAbortController = controller
+
+  const response = await fetch('/api/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      text,
+      voice: TTS_VOICE,
+      rate: '+0%',
+    }),
+    signal: controller.signal,
+  })
+
+  if (requestId !== speakRequestId) {
+    throw new Error('speech_request_cancelled')
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message = payload?.error || `语音生成失败 (${response.status})`
+    throw new Error(message)
+  }
+
+  return response.blob()
 }
 
 // 朗读文本
-export function speak(text: string): void {
+export async function speak(text: string): Promise<void> {
   if (!isSpeechSupported()) {
-    console.warn('[语音] 浏览器不支持语音合成')
+    console.warn('[语音] 当前浏览器不支持音频播放')
     return
   }
 
-  const content = text.trim()
+  const content = normalizeText(text)
   if (!content) return
 
   const requestId = ++speakRequestId
+  cleanupPlayback()
 
-  if (speakTimer) {
-    clearTimeout(speakTimer)
-    speakTimer = null
-  }
-
-  const synth = window.speechSynthesis
-  const shouldCancel = synth.speaking || synth.pending
-  if (shouldCancel) {
-    synth.cancel()
-  }
-
-  const utterance = new SpeechSynthesisUtterance(content)
-  const voice = getFemaleVoice()
-
-  if (voice) {
-    utterance.voice = voice
-    utterance.lang = voice.lang
-  } else {
-    utterance.lang = 'zh-CN'
-  }
-
-  utterance.rate = 1.0
-  utterance.pitch = 1.0
-  utterance.volume = 1.0
-
-  utterance.onstart = () => {
-    console.log('[语音] 开始朗读')
-  }
-
-  utterance.onend = () => {
-    currentUtterance = null
-    console.log('[语音] 朗读结束')
-  }
-
-  utterance.onerror = (event) => {
-    currentUtterance = null
-    console.warn('[语音] 朗读出错:', event.error)
-  }
-
-  currentUtterance = utterance
-
-  const play = () => {
+  try {
+    const blob = await fetchSpeechAudio(content, requestId)
     if (requestId !== speakRequestId) return
 
-    if (!shouldCancel) {
-      speakNow(synth, utterance, requestId)
+    const objectUrl = URL.createObjectURL(blob)
+    const audio = new Audio(objectUrl)
+    audio.preload = 'auto'
+    audio.volume = 1.0
+
+    currentAudio = audio
+    currentObjectUrl = objectUrl
+
+    audio.onended = () => {
+      if (requestId !== speakRequestId) return
+      cleanupPlayback()
+      console.log('[语音] 播放结束')
+    }
+
+    audio.onerror = () => {
+      if (requestId !== speakRequestId) return
+      console.warn('[语音] 音频播放失败')
+      cleanupPlayback()
+    }
+
+    await audio.play()
+    if (requestId !== speakRequestId) {
+      cleanupPlayback()
       return
     }
 
-    speakTimer = setTimeout(() => {
-      speakNow(synth, utterance, requestId)
-      speakTimer = null
-    }, 200)
-  }
-
-  if (shouldCancel) {
-    waitForCancelToSettle(play)
-  } else {
-    play()
+    console.log('[语音] 开始播放')
+  } catch (error: any) {
+    if (error?.message === 'speech_request_cancelled') return
+    console.warn('[语音] 语音播放失败:', error?.message || error)
+    cleanupPlayback()
   }
 }
 
 // 停止朗读
 export function stop(): void {
-  if (isSpeechSupported()) {
-    speakRequestId++
-    if (speakTimer) {
-      clearTimeout(speakTimer)
-      speakTimer = null
-    }
-    window.speechSynthesis.cancel()
-    currentUtterance = null
-  }
+  speakRequestId++
+  cleanupPlayback()
 }
 
 // 检查是否正在朗读
 export function isSpeaking(): boolean {
-  return isSpeechSupported() && (window.speechSynthesis.speaking || currentUtterance !== null)
+  return Boolean(currentAudio && !currentAudio.paused && !currentAudio.ended)
 }
 
 // 初始化
 export function initSpeech(): void {
+  // 保留接口，当前实现由后端生成音频，不需要额外预热浏览器语音引擎
   if (!isSpeechSupported()) return
-  // 预加载语音列表
-  window.speechSynthesis.getVoices()
-  // 启动保活定时器
-  startKeepAlive()
 }

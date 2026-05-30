@@ -2,136 +2,124 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>语音播报测试</title>
   <style>
     body { font-family: sans-serif; padding: 40px; background: #f5f5f5; }
-    .card { background: white; padding: 24px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card { background: white; padding: 24px; border-radius: 12px; max-width: 560px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     h1 { font-size: 20px; margin-bottom: 16px; }
-    button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; margin: 4px; }
+    textarea { width: 100%; min-height: 120px; padding: 12px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; resize: vertical; box-sizing: border-box; }
+    button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; margin: 4px 4px 4px 0; }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-primary:hover { background: #2563eb; }
     .btn-danger { background: #ef4444; color: white; }
     .btn-danger:hover { background: #dc2626; }
-    .btn-success { background: #10b981; color: white; }
-    .btn-success:hover { background: #059669; }
     #log { margin-top: 16px; padding: 12px; background: #1e293b; color: #22c55e; border-radius: 8px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
-    .info { color: #94a3b8; font-size: 13px; margin-top: 12px; }
-    select { padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #d1d5db; margin: 4px; }
+    .info { color: #64748b; font-size: 13px; margin-top: 12px; line-height: 1.6; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>🔊 Web Speech API 测试</h1>
-    
-    <div>
-      <button class="btn-primary" onclick="testSimple()">简单测试</button>
-      <button class="btn-success" onclick="testWithDelay()">延迟测试</button>
+    <h1>🔊 后端 TTS 测试</h1>
+
+    <textarea id="textInput">你好，这是一段语音测试。现在使用的是后端生成音频的方案，不再依赖浏览器本地语音引擎。</textarea>
+
+    <div style="margin-top: 12px;">
+      <button class="btn-primary" onclick="playSpeech()">生成并播放</button>
       <button class="btn-danger" onclick="stopSpeech()">停止</button>
     </div>
-    
-    <div style="margin-top: 12px;">
-      <label>选择语音: </label>
-      <select id="voiceSelect" onchange="log('切换语音: ' + this.value)"></select>
-    </div>
-    
-    <div style="margin-top: 12px;">
-      <label>音量: </label>
-      <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1" oninput="log('音量: ' + this.value)">
-    </div>
-    
+
     <div id="log">等待测试...</div>
-    <div class="info">提示: 如果简单测试有声音但延迟测试没声音，说明是 cancel() 导致的 Chrome bug</div>
+    <div class="info">
+      说明：这个页面会请求后端 `/api/audio/speech` 接口，由服务器生成 mp3 后再播放。<br>
+      如果这里可以响，说明 VPS 端的 edge-tts 链路是通的。
+    </div>
   </div>
 
   <script>
     const logEl = document.getElementById('log');
-    
+    let currentAudio = null;
+    let currentObjectUrl = null;
+    let currentAbortController = null;
+
     function log(msg) {
       const time = new Date().toLocaleTimeString();
       logEl.textContent += `[${time}] ${msg}\n`;
       logEl.scrollTop = logEl.scrollHeight;
       console.log(msg);
     }
-    
-    function loadVoices() {
-      const voices = speechSynthesis.getVoices();
-      const select = document.getElementById('voiceSelect');
-      select.innerHTML = '';
-      
-      voices.forEach((v, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = `${v.name} (${v.lang})`;
-        if (v.lang.startsWith('zh')) opt.selected = true;
-        select.appendChild(opt);
-      });
-      
-      log(`已加载 ${voices.length} 个语音`);
-    }
-    
-    loadVoices();
-    speechSynthesis.addEventListener('voiceschanged', loadVoices);
-    
-    // 测试1: 最简单的调用
-    function testSimple() {
-      log('--- 简单测试开始 ---');
-      speechSynthesis.cancel();
-      
-      const u = new SpeechSynthesisUtterance('你好，这是一段语音测试');
-      const voices = speechSynthesis.getVoices();
-      const select = document.getElementById('voiceSelect');
-      if (voices[select.value]) {
-        u.voice = voices[select.value];
-        u.lang = u.voice.lang;
-        log(`使用语音: ${u.voice.name}`);
+
+    function cleanup() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
       }
-      u.volume = parseFloat(document.getElementById('volumeRange').value);
-      
-      u.onstart = () => log('✅ onstart 触发 - 开始朗读');
-      u.onend = () => log('✅ onend 触发 - 朗读结束');
-      u.onerror = (e) => log(`❌ onerror: ${e.error}`);
-      
-      speechSynthesis.speak(u);
-      log('speak() 已调用');
-    }
-    
-    // 测试2: 带 cancel + 延迟（模拟我们的代码）
-    function testWithDelay() {
-      log('--- 延迟测试开始（模拟代码逻辑）---');
-      speechSynthesis.cancel();
-      log('cancel() 已调用');
-      
-      const u = new SpeechSynthesisUtterance('延迟测试成功，你能听到这段话吗');
-      const voices = speechSynthesis.getVoices();
-      const select = document.getElementById('voiceSelect');
-      if (voices[select.value]) {
-        u.voice = voices[select.value];
-        u.lang = u.voice.lang;
-        log(`使用语音: ${u.voice.name}`);
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.src = '';
+        currentAudio = null;
       }
-      u.volume = parseFloat(document.getElementById('volumeRange').value);
-      
-      u.onstart = () => log('✅ onstart 触发 - 开始朗读');
-      u.onend = () => log('✅ onend 触发 - 朗读结束');
-      u.onerror = (e) => log(`❌ onerror: ${e.error}`);
-      
-      setTimeout(() => {
-        speechSynthesis.pause();
-        speechSynthesis.resume();
-        speechSynthesis.speak(u);
-        log('speak() 已调用（延迟200ms后）');
-      }, 200);
+      if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = null;
+      }
     }
-    
+
+    async function playSpeech() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) {
+        log('请输入要朗读的文本');
+        return;
+      }
+
+      cleanup();
+      const controller = new AbortController();
+      currentAbortController = controller;
+      log('开始请求后端生成音频...');
+
+      try {
+        const response = await fetch('/api/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const audio = new Audio(objectUrl);
+
+        currentObjectUrl = objectUrl;
+        currentAudio = audio;
+
+        audio.onended = () => {
+          log('✅ 播放结束');
+          cleanup();
+        };
+
+        audio.onerror = () => {
+          log('❌ 播放失败');
+          cleanup();
+        };
+
+        await audio.play();
+        log('✅ 开始播放');
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        log('❌ 语音生成失败: ' + (error && error.message ? error.message : String(error)));
+        cleanup();
+      }
+    }
+
     function stopSpeech() {
-      speechSynthesis.cancel();
+      cleanup();
       log('已停止');
     }
-    
-    // 检测支持
-    log(`浏览器支持: ${'speechSynthesis' in window ? '✅ 是' : '❌ 否'}`);
-    log(`当前 speaking: ${speechSynthesis.speaking}`);
-    log(`当前 paused: ${speechSynthesis.paused}`);
   </script>
 </body>
 </html>

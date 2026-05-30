@@ -7,6 +7,7 @@
 - 系统：Ubuntu 20.04+ / Debian 11+
 - 内存：建议 2GB+
 - 端口：80（前端）、3001（后端，可选）
+- 语音播报：Docker 镜像会自动安装 Python 和 `edge-tts`，不需要额外的 TTS 付费 Key
 
 ### 2. 安装 Docker
 

@@ -4,7 +4,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Native SQLite driver dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 py3-pip make g++
+
+# edge-tts 语音引擎
+RUN python3 -m pip install --no-cache-dir edge-tts
 
 # 安装依赖（包括 devDependencies 用于编译）
 COPY package*.json ./

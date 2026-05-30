@@ -7,6 +7,7 @@ import { sourcesRouter } from './routes/sources';
 import { eventsRouter } from './routes/events';
 import { reportsRouter } from './routes/reports';
 import { aiRouter } from './routes/ai';
+import { audioRouter } from './routes/audio';
 import { authRouter } from './routes/auth';
 import { 
   startCrawler, 
@@ -37,6 +38,7 @@ app.use('/api/sources', sourcesRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/audio', audioRouter);
 app.use('/api/auth', authRouter);
 
 // 手动触发爬虫（增量模式）
