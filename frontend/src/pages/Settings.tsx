@@ -3,7 +3,7 @@ import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock,
 import { sourcesApi, crawlerApi } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import api from '../lib/api'
-import { isSpeechSupported, speak, initSpeech } from '../lib/speech'
+import { isSpeechSupported, speak, initSpeech, unlockSpeechPlayback } from '../lib/speech'
 
 interface NewsSource {
   id: number
@@ -68,6 +68,7 @@ export default function Settings() {
 
   // 测试语音
   const handleTestSpeech = () => {
+    unlockSpeechPlayback()
     speak('语音播报已开启，将为您朗读新闻标题')
   }
 
@@ -329,7 +330,13 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       checked={speechEnabled}
-                      onChange={(e) => setSpeechEnabled(e.target.checked)}
+                      onChange={(e) => {
+                        const enabled = e.target.checked
+                        if (enabled) {
+                          unlockSpeechPlayback()
+                        }
+                        setSpeechEnabled(enabled)
+                      }}
                       className="sr-only peer"
                     />
                     <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, RefreshCw, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { newsApi, eventsApi } from '../lib/api'
 import { formatTime, truncateText, getCategoryBadgeClass } from '../lib/utils'
-import { speak, isSpeechSupported } from '../lib/speech'
+import { speak, isSpeechSupported, unlockSpeechPlayback } from '../lib/speech'
 
 interface NewsItem {
   id: number
@@ -212,7 +212,10 @@ export default function NewsFeed() {
             {activeTab === 'news' ? `共 ${totalCount} 条` : `${events.length} 条事件`}
           </span>
           <button
-            onClick={fetchData}
+            onClick={() => {
+              unlockSpeechPlayback()
+              fetchData()
+            }}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             title="刷新"
           >

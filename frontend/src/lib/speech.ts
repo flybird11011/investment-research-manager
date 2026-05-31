@@ -2,6 +2,7 @@ let currentAudio: HTMLAudioElement | null = null
 let currentObjectUrl: string | null = null
 let currentAbortController: AbortController | null = null
 let speakRequestId = 0
+let audioUnlocked = false
 
 const TTS_VOICE = 'zh-CN-XiaoxiaoNeural'
 
@@ -32,6 +33,63 @@ function cleanupPlayback(): void {
 
 function normalizeText(text: string): string {
   return text.trim().replace(/\s+/g, ' ')
+}
+
+function createSilentWavBlob(durationMs = 120): Blob {
+  const sampleRate = 8000
+  const numSamples = Math.max(1, Math.floor((sampleRate * durationMs) / 1000))
+  const bytesPerSample = 2
+  const dataSize = numSamples * bytesPerSample
+  const buffer = new ArrayBuffer(44 + dataSize)
+  const view = new DataView(buffer)
+
+  const writeString = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) {
+      view.setUint8(offset + i, value.charCodeAt(i))
+    }
+  }
+
+  writeString(0, 'RIFF')
+  view.setUint32(4, 36 + dataSize, true)
+  writeString(8, 'WAVE')
+  writeString(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * bytesPerSample, true)
+  view.setUint16(32, bytesPerSample, true)
+  view.setUint16(34, 16, true)
+  writeString(36, 'data')
+  view.setUint32(40, dataSize, true)
+
+  return new Blob([buffer], { type: 'audio/wav' })
+}
+
+export function unlockSpeechPlayback(): void {
+  if (audioUnlocked || typeof Audio === 'undefined') return
+
+  const blob = createSilentWavBlob()
+  const objectUrl = URL.createObjectURL(blob)
+  const audio = new Audio(objectUrl)
+  audio.muted = true
+  audio.volume = 0
+  audio.preload = 'auto'
+
+  const cleanup = () => {
+    audio.pause()
+    audio.src = ''
+    URL.revokeObjectURL(objectUrl)
+  }
+
+  audio.play()
+    .then(() => {
+      audioUnlocked = true
+      cleanup()
+    })
+    .catch(() => {
+      cleanup()
+    })
 }
 
 async function fetchSpeechAudio(text: string, requestId: number): Promise<Blob> {
@@ -79,6 +137,7 @@ export async function speak(text: string): Promise<void> {
   if (!content) return
 
   const requestId = ++speakRequestId
+  unlockSpeechPlayback()
   cleanupPlayback()
 
   try {
