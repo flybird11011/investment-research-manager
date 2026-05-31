@@ -97,6 +97,9 @@ export const authApi = {
   register: (username: string, password: string, nickname?: string) =>
     api.post('/auth/register', { username, password, nickname }),
   getMe: () => api.get('/auth/me'),
+  getSettings: () => api.get('/auth/settings'),
+  updateSettings: (data: { registrationDisabled?: boolean; deduplicationEnabled?: boolean }) =>
+    api.put('/auth/settings', data),
 };
 
 // 爬虫/源状态API

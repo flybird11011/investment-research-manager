@@ -22,6 +22,7 @@ import {
   resetSourceStatus,
   setUpdateInterval,
 } from '../utils/incrementalUpdate';
+import { getSystemSettingBoolean } from '../utils/systemSettings';
 
 // 创建自定义RSS解析器 - 支持GBK编码
 const rssParser = new Parser({
@@ -998,27 +999,58 @@ function generateEventId(title: string): string {
 }
 
 // ============ 数据存储 ============
-
-// 保存新闻到数据库（使用智能去重）
-async function saveNews(newsItems: any[]) {
+async function saveNews(newsItems: any[], deduplicationEnabled = true) {
   let savedCount = 0;
   let duplicateCount = 0;
-  
-  // 获取现有新闻用于去重（只获取最近48小时的）
+
+  if (!deduplicationEnabled) {
+    console.log('   ? ?????????????????');
+
+    for (const item of newsItems) {
+      try {
+        const relatedStocks = extractStocks(item.title, item.content || '');
+        const eventId = generateEventId(item.title);
+        const fingerprint = generateNewsFingerprint({
+          title: item.title,
+          sourceUrl: item.sourceUrl,
+          content: item.content
+        });
+
+        create('news', {
+          ...item,
+          relatedStocks,
+          eventId,
+          exactHash: fingerprint.exactHash,
+          simHash: fingerprint.simHash,
+          keywordFingerprint: fingerprint.keywordFingerprint,
+          createdAt: new Date().toISOString(),
+        });
+
+        await updateEvent(eventId, item, relatedStocks);
+        savedCount++;
+      } catch (error) {
+        console.error('??????:', error);
+      }
+    }
+
+    return savedCount;
+  }
+
+  // ????????????????48????
   const allExistingNews = findAll<any>('news');
   const cutoffTime = new Date();
   cutoffTime.setHours(cutoffTime.getHours() - 48);
-  
+
   const recentNews = allExistingNews.filter((n: any) => {
     if (!n.publishedAt) return true;
     return new Date(n.publishedAt) > cutoffTime;
   });
-  
-  console.log(`   📊 去重检查: 现有${allExistingNews.length}条新闻，最近48小时${recentNews.length}条`);
-  
+
+  console.log(`   ?? ????: ??${allExistingNews.length}??????48??${recentNews.length}?`);
+
   for (const item of newsItems) {
     try {
-      // 使用新的去重算法检查
+      // ??????????
       const duplicateCheck = checkDuplicate(
         {
           title: item.title,
@@ -1035,27 +1067,27 @@ async function saveNews(newsItems: any[]) {
           useUrlMatch: true
         }
       );
-      
+
       if (duplicateCheck.isDuplicate) {
-        console.log(`   ⚠️ 跳过重复新闻: "${item.title.substring(0, 40)}..." (${duplicateCheck.matchType}, 相似度${(duplicateCheck.similarity * 100).toFixed(1)}%)`);
+        console.log(`   ?? ??????: "${item.title.substring(0, 40)}..." (${duplicateCheck.matchType}, ???${(duplicateCheck.similarity * 100).toFixed(1)}%)`);
         duplicateCount++;
         continue;
       }
-      
-      // 提取相关股票
+
+      // ??????
       const relatedStocks = extractStocks(item.title, item.content || '');
-      
-      // 生成事件ID
+
+      // ????ID
       const eventId = generateEventId(item.title);
-      
-      // 生成新闻指纹（用于后续去重）
+
+      // ??????????????
       const fingerprint = generateNewsFingerprint({
         title: item.title,
         sourceUrl: item.sourceUrl,
         content: item.content
       });
-      
-      // 保存新闻（包含指纹信息）
+
+      // ????????????
       const savedNews = create('news', {
         ...item,
         relatedStocks,
@@ -1066,10 +1098,10 @@ async function saveNews(newsItems: any[]) {
         createdAt: new Date().toISOString(),
       });
 
-      // 更新事件聚合
+      // ??????
       await updateEvent(eventId, item, relatedStocks);
-      
-      // 添加到recentNews以便后续去重
+
+      // ???recentNews??????
       recentNews.push({
         id: savedNews.id,
         title: item.title,
@@ -1080,17 +1112,17 @@ async function saveNews(newsItems: any[]) {
         simHash: fingerprint.simHash,
         keywordFingerprint: fingerprint.keywordFingerprint
       });
-      
+
       savedCount++;
     } catch (error) {
-      console.error('保存新闻失败:', error);
+      console.error('??????:', error);
     }
   }
-  
+
   if (duplicateCount > 0) {
-    console.log(`   📉 过滤重复新闻: ${duplicateCount}条`);
+    console.log(`   ?? ??????: ${duplicateCount}?`);
   }
-  
+
   return savedCount;
 }
 
@@ -1140,6 +1172,7 @@ async function crawlTask(options: { force?: boolean; sourceName?: string } = {})
   let successSources = 0;
   let skippedSources = 0;
   let failedSources = 0;
+  const deduplicationEnabled = getSystemSettingBoolean('deduplicationEnabled', true);
 
   try {
     // 获取启用的新闻源
@@ -1209,7 +1242,7 @@ async function crawlTask(options: { force?: boolean; sourceName?: string } = {})
         }
 
         if (newsItems.length > 0) {
-          const saved = await saveNews(newsItems);
+          const saved = await saveNews(newsItems, deduplicationEnabled);
           totalNews += saved;
           successSources++;
           

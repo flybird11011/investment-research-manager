@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { findAll, findWhere, create, update, remove } from '../db/jsonDb';
 import crypto from 'crypto';
+import { getSystemSettingBoolean, setSystemSettingBoolean } from '../utils/systemSettings';
 
 const router = Router();
 
@@ -263,12 +264,13 @@ export { router as authRouter };
 // 获取系统设置
 router.get('/settings', adminOnly, async (req, res) => {
   try {
-    const settings = findAll<any>('systemSettings');
-    const registrationDisabled = settings.find((s: any) => s.key === 'registrationDisabled');
+    const registrationDisabled = getSystemSettingBoolean('registrationDisabled', false);
+    const deduplicationEnabled = getSystemSettingBoolean('deduplicationEnabled', true);
     res.json({
       success: true,
       settings: {
-        registrationDisabled: registrationDisabled?.value === true,
+        registrationDisabled,
+        deduplicationEnabled,
       },
     });
   } catch (error) {
@@ -280,24 +282,30 @@ router.get('/settings', adminOnly, async (req, res) => {
 // 更新系统设置
 router.put('/settings', adminOnly, async (req, res) => {
   try {
-    const { registrationDisabled } = req.body;
+    const { registrationDisabled, deduplicationEnabled } = req.body;
+    const updatedKeys: string[] = [];
 
-    const settings = findAll<any>('systemSettings');
-    const existing = settings.find((s: any) => s.key === 'registrationDisabled');
+    if (registrationDisabled !== undefined) {
+      setSystemSettingBoolean('registrationDisabled', !!registrationDisabled);
+      updatedKeys.push('registrationDisabled');
+    }
 
-    if (existing) {
-      update('systemSettings', existing.id, { value: !!registrationDisabled } as any);
-    } else {
-      create('systemSettings', {
-        key: 'registrationDisabled',
-        value: !!registrationDisabled,
-      });
+    if (deduplicationEnabled !== undefined) {
+      setSystemSettingBoolean('deduplicationEnabled', !!deduplicationEnabled);
+      updatedKeys.push('deduplicationEnabled');
+    }
+
+    if (updatedKeys.length === 0) {
+      return res.status(400).json({ error: '未提供可更新的系统设置' });
     }
 
     res.json({
       success: true,
-      message: registrationDisabled ? '注册功能已关闭' : '注册功能已开启',
-      settings: { registrationDisabled: !!registrationDisabled },
+      message: '系统设置已更新',
+      settings: {
+        registrationDisabled: getSystemSettingBoolean('registrationDisabled', false),
+        deduplicationEnabled: getSystemSettingBoolean('deduplicationEnabled', true),
+      },
     });
   } catch (error) {
     console.error('更新系统设置失败:', error);

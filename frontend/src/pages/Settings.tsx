@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock, Save, Volume2, VolumeX } from 'lucide-react'
-import { sourcesApi, crawlerApi } from '../lib/api'
+import { sourcesApi, crawlerApi, authApi } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import api from '../lib/api'
 import { isSpeechSupported, speak, initSpeech, unlockSpeechPlayback, notifySpeechSettingsChanged } from '../lib/speech'
@@ -38,13 +38,14 @@ export default function Settings() {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [registrationDisabled, setRegistrationDisabled] = useState(false)
+  const [deduplicationEnabled, setDeduplicationEnabled] = useState(true)
 
   // 源状态相关
   const [sourceStatuses, setSourceStatuses] = useState<Record<string, { interval: number; lastFetch: string; lastCount: number; totalCount: number; status: string }>>({})
   const [editingInterval, setEditingInterval] = useState<string | null>(null)
   const [intervalValue, setIntervalValue] = useState<number>(10)
 
-  // 语音播报相关
+  // 璇煶鎾姤鐩稿叧
   const [speechEnabled, setSpeechEnabled] = useState<boolean>(() => {
     return localStorage.getItem('speechEnabled') === 'true'
   })
@@ -64,7 +65,7 @@ export default function Settings() {
     initSpeech()
   }, [isAdmin])
 
-  // 保存语音设置到 localStorage
+  // 淇濆瓨璇煶璁剧疆鍒?localStorage
   useEffect(() => {
     localStorage.setItem('speechEnabled', speechEnabled.toString())
     notifySpeechSettingsChanged()
@@ -75,7 +76,7 @@ export default function Settings() {
     notifySpeechSettingsChanged()
   }, [speechReadAllNew])
 
-  // 测试语音
+  // 娴嬭瘯璇煶
   const handleTestSpeech = () => {
     unlockSpeechPlayback()
     speak('语音播报已开启，将为您朗读新闻标题')
@@ -87,7 +88,7 @@ export default function Settings() {
       const res = await sourcesApi.getList()
       setSources(res.data.data)
     } catch (error) {
-      console.error('获取新闻源失败:', error)
+      console.error('鑾峰彇鏂伴椈婧愬け璐?', error)
     } finally {
       setLoading(false)
     }
@@ -103,13 +104,13 @@ export default function Settings() {
       }
       setSourceStatuses(map)
     } catch (error) {
-      console.error('获取源状态失败:', error)
+      console.error('鑾峰彇婧愮姸鎬佸け璐?', error)
     }
   }
 
   const handleSetInterval = async (sourceName: string) => {
     if (intervalValue < 5) {
-      alert('更新间隔最小为 5 分钟')
+      alert('鏇存柊闂撮殧鏈€灏忎负 5 鍒嗛挓')
       return
     }
     try {
@@ -117,8 +118,8 @@ export default function Settings() {
       setEditingInterval(null)
       fetchSourceStatuses()
     } catch (error) {
-      console.error('设置更新频率失败:', error)
-      alert('设置失败')
+      console.error('璁剧疆鏇存柊棰戠巼澶辫触:', error)
+      alert('璁剧疆澶辫触')
     }
   }
 
@@ -128,7 +129,7 @@ export default function Settings() {
       const res = await api.get('/auth/users')
       setUsers(res.data.users)
     } catch (error) {
-      console.error('获取用户列表失败:', error)
+      console.error('鑾峰彇鐢ㄦ埛鍒楄〃澶辫触:', error)
     } finally {
       setUsersLoading(false)
     }
@@ -136,10 +137,11 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const res = await api.get('/auth/settings')
+      const res = await authApi.getSettings()
       setRegistrationDisabled(res.data.settings.registrationDisabled)
+      setDeduplicationEnabled(res.data.settings.deduplicationEnabled ?? true)
     } catch (error) {
-      console.error('获取系统设置失败:', error)
+      console.error('鑾峰彇绯荤粺璁剧疆澶辫触:', error)
     }
   }
 
@@ -149,10 +151,24 @@ export default function Settings() {
     if (!confirm(`确定要${action}注册功能吗？`)) return
 
     try {
-      await api.put('/auth/settings', { registrationDisabled: newValue })
+      await authApi.updateSettings({ registrationDisabled: newValue })
       setRegistrationDisabled(newValue)
     } catch (error) {
-      console.error('更新系统设置失败:', error)
+      console.error('鏇存柊绯荤粺璁剧疆澶辫触:', error)
+      alert('鎿嶄綔澶辫触')
+    }
+  }
+
+  const handleToggleDeduplication = async () => {
+    const newValue = !deduplicationEnabled
+    const action = newValue ? '开启' : '关闭'
+    if (!confirm(`确定要${action}全局去重功能吗？`)) return
+
+    try {
+      await authApi.updateSettings({ deduplicationEnabled: newValue })
+      setDeduplicationEnabled(newValue)
+    } catch (error) {
+      console.error('更新全局去重设置失败:', error)
       alert('操作失败')
     }
   }
@@ -167,8 +183,8 @@ export default function Settings() {
       setShowAddForm(false)
       fetchSources()
     } catch (error) {
-      console.error('添加新闻源失败:', error)
-      alert('添加失败')
+      console.error('娣诲姞鏂伴椈婧愬け璐?', error)
+      alert('娣诲姞澶辫触')
     }
   }
 
@@ -177,18 +193,18 @@ export default function Settings() {
       await sourcesApi.update(source.id, { isEnabled: !source.isEnabled })
       fetchSources()
     } catch (error) {
-      console.error('更新新闻源失败:', error)
+      console.error('鏇存柊鏂伴椈婧愬け璐?', error)
     }
   }
 
   const handleRemove = async (id: number) => {
-    if (!confirm('确定要删除这个新闻源吗？')) return
+    if (!confirm('纭畾瑕佸垹闄よ繖涓柊闂绘簮鍚楋紵')) return
 
     try {
       await sourcesApi.remove(id)
       fetchSources()
     } catch (error) {
-      console.error('删除新闻源失败:', error)
+      console.error('鍒犻櫎鏂伴椈婧愬け璐?', error)
     }
   }
 
@@ -199,7 +215,7 @@ export default function Settings() {
       await sourcesApi.reset()
       fetchSources()
     } catch (error) {
-      console.error('恢复默认设置失败:', error)
+      console.error('鎭㈠榛樿璁剧疆澶辫触:', error)
     }
   }
 
@@ -213,7 +229,7 @@ export default function Settings() {
       await api.put(`/auth/users/${targetUser.id}`, { disabled: !targetUser.disabled })
       fetchUsers()
     } catch (error: any) {
-      const msg = error?.response?.data?.error || '操作失败'
+      const msg = error?.response?.data?.error || '鎿嶄綔澶辫触'
       alert(msg)
     }
   }
@@ -227,7 +243,7 @@ export default function Settings() {
       await api.delete(`/auth/users/${targetUser.id}`)
       fetchUsers()
     } catch (error: any) {
-      const msg = error?.response?.data?.error || '删除失败'
+      const msg = error?.response?.data?.error || '鍒犻櫎澶辫触'
       alert(msg)
     }
   }
@@ -246,12 +262,12 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题 */}
+      {/* 椤甸潰鏍囬 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">设置</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">璁剧疆</h1>
       </div>
 
-      {/* Tab 切换 */}
+      {/* Tab 鍒囨崲 */}
       {isAdmin && (
         <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
           <button
@@ -274,17 +290,17 @@ export default function Settings() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>用户管理</span>
+            <span>鐢ㄦ埛绠＄悊</span>
           </button>
         </div>
       )}
 
-      {/* 新闻源管理 Tab */}
+      {/* 鏂伴椈婧愮鐞?Tab */}
       {activeTab === 'sources' && (
         <div className="card">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">新闻源管理</h2>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">新闻源管理</h2>
               <p className="text-sm text-gray-500 mt-1">
                 管理资讯来源，支持添加自定义 RSS 源
               </p>
@@ -293,7 +309,7 @@ export default function Settings() {
               <button
                 onClick={fetchSources}
                 className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="刷新"
+                title="鍒锋柊"
               >
                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -307,7 +323,7 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* 语音播报设置 */}
+          {/* 璇煶鎾姤璁剧疆 */}
           {speechSupported && (
             <div className="mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-100">
               <div className="flex items-center justify-between">
@@ -320,12 +336,12 @@ export default function Settings() {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">语音播报</h3>
+                    <h3 className="font-medium text-gray-900">璇煶鎾姤</h3>
                     <p className="text-sm text-gray-500">
                       {speechEnabled
                         ? speechReadAllNew
-                          ? '新新闻刷新时朗读全部新增标题'
-                          : '新新闻刷新时默认朗读前 10 条标题'
+                          ? '新消息刷新时朗读全部新增标题'
+                          : '新消息刷新时默认朗读前 10 条标题'
                         : '已关闭'}
                     </p>
                   </div>
@@ -373,18 +389,18 @@ export default function Settings() {
             </div>
           )}
 
-          {/* 添加表单 */}
+          {/* 娣诲姞琛ㄥ崟 */}
           {showAddForm && (
             <form onSubmit={handleAdd} className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">添加自定义新闻源</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">娣诲姞鑷畾涔夋柊闂绘簮</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">名称</label>
+                  <label className="block text-sm text-gray-600 mb-1">鍚嶇О</label>
                   <input
                     type="text"
                     value={newSource.name}
                     onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
-                    placeholder="如：某某财经"
+                    placeholder="濡傦細鏌愭煇璐㈢粡"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                     required
                   />
@@ -403,20 +419,20 @@ export default function Settings() {
               </div>
               <div className="flex items-center space-x-3 mt-4">
                 <button type="submit" className="btn-primary text-sm flex-1 sm:flex-none">
-                  确认添加
+                  纭娣诲姞
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
                   className="btn-secondary text-sm flex-1 sm:flex-none"
                 >
-                  取消
+                  鍙栨秷
                 </button>
               </div>
             </form>
           )}
 
-          {/* 新闻源列表 */}
+          {/* 鏂伴椈婧愬垪琛?*/}
           <div className="space-y-2 sm:space-y-3">
             {sources.map((source) => {
               const status = sourceStatuses[source.name]
@@ -438,7 +454,7 @@ export default function Settings() {
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900 text-sm sm:text-base">{source.name}</span>
                         {source.isDefault && (
-                          <span className="badge badge-gray text-xs">默认</span>
+                          <span className="badge badge-gray text-xs">榛樿</span>
                         )}
                       </div>
                       <div className="text-xs sm:text-sm text-gray-500 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-md">
@@ -448,7 +464,7 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
-                    {/* 启用/禁用开关 */}
+                    {/* 鍚敤/绂佺敤寮€鍏?*/}
                     <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
                       <input
                         type="checkbox"
@@ -458,11 +474,11 @@ export default function Settings() {
                       />
                       <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                       <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
-                        {source.isEnabled ? '启用' : '禁用'}
+                        {source.isEnabled ? '鍚敤' : '绂佺敤'}
                       </span>
                     </label>
 
-                    {/* 删除按钮 */}
+                    {/* 鍒犻櫎鎸夐挳 */}
                     {!source.isDefault && (
                       <button
                         onClick={() => handleRemove(source.id)}
@@ -474,24 +490,24 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* 源状态信息行 */}
+                {/* 婧愮姸鎬佷俊鎭 */}
                 {status && (
                   <div className="mt-2 ml-12 sm:ml-13 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
                     <span className="flex items-center space-x-1">
                       <Clock className="w-3 h-3" />
-                      <span>最后抓取: {status.lastFetch}</span>
+                      <span>鏈€鍚庢姄鍙? {status.lastFetch}</span>
                     </span>
                     <span>上次: {status.lastCount}条</span>
                     <span>累计: {status.totalCount}条</span>
-                    <span className={status.status === '正常' ? 'text-green-500' : 'text-red-500'}>
+                    <span className={status.status === '姝ｅ父' ? 'text-green-500' : 'text-red-500'}>
                       {status.status}
                     </span>
                   </div>
                 )}
 
-                {/* 更新频率设置 */}
+                {/* 鏇存柊棰戠巼璁剧疆 */}
                 <div className="mt-2 ml-12 sm:ml-13 flex items-center gap-2">
-                  <span className="text-xs text-gray-400">更新频率:</span>
+                  <span className="text-xs text-gray-400">鏇存柊棰戠巼:</span>
                   {editingInterval === source.name ? (
                     <div className="flex items-center gap-1.5">
                       <input
@@ -507,20 +523,20 @@ export default function Settings() {
                           if (e.key === 'Escape') setEditingInterval(null)
                         }}
                       />
-                      <span className="text-xs text-gray-400">分钟</span>
+                      <span className="text-xs text-gray-400">鍒嗛挓</span>
                       <button
                         onClick={() => handleSetInterval(source.name)}
                         className="p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
-                        title="保存"
+                        title="淇濆瓨"
                       >
                         <Save className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setEditingInterval(null)}
                         className="p-1 text-gray-400 hover:bg-gray-100 rounded transition-colors"
-                        title="取消"
+                        title="鍙栨秷"
                       >
-                        <span className="text-xs">✕</span>
+                        <span className="text-xs">✓</span>
                       </button>
                     </div>
                   ) : (
@@ -532,8 +548,8 @@ export default function Settings() {
                        className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
                      >
                        {sourceStatuses[source.name]?.interval
-                         ? `每 ${sourceStatuses[source.name].interval} 分钟`
-                         : '点击设置'}
+                         ? `姣?${sourceStatuses[source.name].interval} 鍒嗛挓`
+                         : '鐐瑰嚮璁剧疆'}
                      </button>
                   )}
                 </div>
@@ -542,30 +558,54 @@ export default function Settings() {
             })}
           </div>
 
-          {/* 恢复默认 */}
+          {/* 鎭㈠榛樿 */}
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <button
-              onClick={handleReset}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
-            >
-              恢复默认新闻源设置
-            </button>
+              <button
+                onClick={handleReset}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                恢复默认新闻源设置
+              </button>
           </div>
         </div>
       )}
 
-      {/* 用户管理 Tab（仅管理员可见） */}
+      {/* 鐢ㄦ埛绠＄悊 Tab锛堜粎绠＄悊鍛樺彲瑙侊級 */}
       {activeTab === 'users' && isAdmin && (
         <div className="space-y-6">
-          {/* 注册开关 */}
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">注册控制</h2>
+                <h2 className="text-lg font-semibold text-gray-900">全局去重</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {deduplicationEnabled
+                    ? '抓取时会自动过滤重复新闻，保持现有行为'
+                    : '抓取时不会过滤重复新闻，所有抓到的内容都会入库'}
+                </p>
+              </div>
+              <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
+                <input
+                  type="checkbox"
+                  checked={deduplicationEnabled}
+                  onChange={handleToggleDeduplication}
+                  className="sr-only peer"
+                />
+                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                <span className="ml-2 text-sm font-medium text-gray-700 hidden sm:inline">
+                  {deduplicationEnabled ? '已开启' : '已关闭'}
+                </span>
+              </label>
+            </div>
+          </div>
+          {/* 娉ㄥ唽寮€鍏?*/}
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">娉ㄥ唽鎺у埗</h2>
                 <p className="text-sm text-gray-500 mt-1">
                   {registrationDisabled
                     ? '注册功能已关闭，新用户无法注册'
-                    : '注册功能已开启，任何人都可以注册'}
+                    : '娉ㄥ唽鍔熻兘宸插紑鍚紝浠讳綍浜洪兘鍙互娉ㄥ唽'}
                 </p>
               </div>
               <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
@@ -583,7 +623,7 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* 用户列表 */}
+          {/* 鐢ㄦ埛鍒楄〃 */}
           <div className="card">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
             <div>
@@ -601,7 +641,7 @@ export default function Settings() {
             </button>
           </div>
 
-          {/* 用户列表 */}
+          {/* 鐢ㄦ埛鍒楄〃 */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -674,7 +714,7 @@ export default function Settings() {
                           </div>
                         )}
                         {isSelf && (
-                          <span className="text-xs text-gray-400">当前用户</span>
+                            <span className="text-xs text-gray-400">当前用户</span>
                         )}
                       </td>
                     </tr>
@@ -694,7 +734,7 @@ export default function Settings() {
         </div>
       )}
 
-      {/* 关于 */}
+      {/* 鍏充簬 */}
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">关于</h2>
         <div className="text-sm text-gray-600 space-y-2">
@@ -706,3 +746,4 @@ export default function Settings() {
     </div>
   )
 }
+
