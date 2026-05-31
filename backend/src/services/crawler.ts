@@ -1137,10 +1137,12 @@ async function updateEvent(eventId: string, newsItem: any, relatedStocks: string
       update('events', existing.id, {
         newsCount: (existing.newsCount || 1) + 1,
         lastPublishedAt: newsItem.publishedAt,
+        lastUpdatedAt: new Date().toISOString(),
         relatedStocks: [...new Set([...existingStocks, ...relatedStocks])],
       } as any);
     } else {
       // 创建新事件
+      const now = new Date().toISOString();
       create('events', {
         eventId,
         title: newsItem.title.slice(0, 200),
@@ -1149,7 +1151,8 @@ async function updateEvent(eventId: string, newsItem: any, relatedStocks: string
         newsCount: 1,
         firstPublishedAt: newsItem.publishedAt,
         lastPublishedAt: newsItem.publishedAt,
-        createdAt: new Date().toISOString(),
+        lastUpdatedAt: now,
+        createdAt: now,
       });
     }
   } catch (error) {

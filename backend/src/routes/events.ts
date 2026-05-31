@@ -23,10 +23,23 @@ router.get('/', async (req, res) => {
       );
     }
 
-    // 排序（按最后发布时间倒序）
-    results.sort((a: any, b: any) => 
-      new Date(b.lastPublishedAt).getTime() - new Date(a.lastPublishedAt).getTime()
-    );
+    // 排序（优先按最近更新，其次按最后发布时间）
+    results.sort((a: any, b: any) => {
+      const getSortTime = (item: any) => {
+        const updatedAt = new Date(item.lastUpdatedAt || item.updatedAt || 0).getTime();
+        if (Number.isFinite(updatedAt) && updatedAt > 0) return updatedAt;
+
+        const publishedAt = new Date(item.lastPublishedAt || item.firstPublishedAt || item.publishedAt || 0).getTime();
+        if (Number.isFinite(publishedAt) && publishedAt > 0) return publishedAt;
+
+        return item.id || 0;
+      };
+
+      const timeDiff = getSortTime(b) - getSortTime(a);
+      if (timeDiff !== 0) return timeDiff;
+
+      return (b.lastPublishedAt || '').localeCompare(a.lastPublishedAt || '');
+    });
 
     // 分页
     const total = results.length;
