@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { newsApi } from '../lib/api'
 import { formatTime } from '../lib/utils'
+import { speak, isSpeechSupported } from '../lib/speech'
 
 interface NewsItem {
   id: number
@@ -11,6 +12,7 @@ interface NewsItem {
 }
 
 const PAGE_SIZE = 30
+const SPEECH_DEFAULT_MAX_ITEMS = 10
 
 function getPublishedTime(item: NewsItem): number {
   const time = new Date(item.publishedAt).getTime()
@@ -47,6 +49,11 @@ export default function FlashMode() {
   const pageRef = useRef(1)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const lastNewsIdsRef = useRef<Set<number>>(new Set())
+  const isFirstLoadRef = useRef(true)
+
+  const speechEnabled = isSpeechSupported() && localStorage.getItem('speechEnabled') === 'true'
+  const speechReadAllNew = isSpeechSupported() && localStorage.getItem('speechReadAllNew') === 'true'
 
   const fetchNews = useCallback(async (page: number, append: boolean = false) => {
     if (append) {
@@ -58,6 +65,22 @@ export default function FlashMode() {
     try {
       const res = await newsApi.getList({ limit: PAGE_SIZE, page })
       const { data: items, total } = res.data
+
+      if (!append && !isFirstLoadRef.current && speechEnabled && items.length > 0) {
+        const newItems = items.filter((item: NewsItem) => !lastNewsIdsRef.current.has(item.id))
+        if (newItems.length > 0) {
+          const titlesToSpeak = (speechReadAllNew
+            ? newItems
+            : newItems.slice(0, SPEECH_DEFAULT_MAX_ITEMS)
+          ).map((item: NewsItem) => item.title)
+          speak(titlesToSpeak.join('。'))
+        }
+      }
+
+      if (!append) {
+        lastNewsIdsRef.current = new Set(items.map((item: NewsItem) => item.id))
+        isFirstLoadRef.current = false
+      }
 
       setNews(prev => {
         return append
@@ -74,7 +97,7 @@ export default function FlashMode() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [])
+  }, [speechEnabled, speechReadAllNew])
 
   // 初始加载
   useEffect(() => {
@@ -83,10 +106,24 @@ export default function FlashMode() {
 
   // 自动刷新（只刷新第一页，合并去重）
   useEffect(() => {
+    if (!speechEnabled) return
+
     const interval = setInterval(async () => {
       try {
         const res = await newsApi.getList({ limit: PAGE_SIZE, page: 1 })
         const newItems = res.data.data
+        if (!document.hidden && !isFirstLoadRef.current && newItems.length > 0) {
+          const freshItems = newItems.filter((item: NewsItem) => !lastNewsIdsRef.current.has(item.id))
+          if (freshItems.length > 0) {
+            const titlesToSpeak = (speechReadAllNew
+              ? freshItems
+              : freshItems.slice(0, SPEECH_DEFAULT_MAX_ITEMS)
+            ).map((item: NewsItem) => item.title)
+            speak(titlesToSpeak.join('。'))
+          }
+        }
+        lastNewsIdsRef.current = new Set(newItems.map((item: NewsItem) => item.id))
+        isFirstLoadRef.current = false
         setNews(prev => mergeNewsByPublishedAtDesc(prev, newItems))
         setTotalCount(res.data.total)
       } catch (error) {
@@ -94,8 +131,7 @@ export default function FlashMode() {
       }
     }, 30000)
     return () => clearInterval(interval)
-  }, [])
-
+  }, [speechEnabled, speechReadAllNew])
   // 无限滚动
   useEffect(() => {
     if (observerRef.current) {
