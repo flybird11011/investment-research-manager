@@ -495,7 +495,7 @@ export default function Settings() {
                   <div className="mt-2 ml-12 sm:ml-13 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
                     <span className="flex items-center space-x-1">
                       <Clock className="w-3 h-3" />
-                      <span>鏈€鍚庢姄鍙? {status.lastFetch}</span>
+                      <span>最后抓取: {status.lastFetch}</span>
                     </span>
                     <span>上次: {status.lastCount}条</span>
                     <span>累计: {status.totalCount}条</span>
@@ -523,11 +523,11 @@ export default function Settings() {
                           if (e.key === 'Escape') setEditingInterval(null)
                         }}
                       />
-                      <span className="text-xs text-gray-400">鍒嗛挓</span>
+                      <span className="text-xs text-gray-400">分钟</span>
                       <button
                         onClick={() => handleSetInterval(source.name)}
                         className="p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
-                        title="淇濆瓨"
+                        title="保存"
                       >
                         <Save className="w-3.5 h-3.5" />
                       </button>
@@ -536,7 +536,7 @@ export default function Settings() {
                         className="p-1 text-gray-400 hover:bg-gray-100 rounded transition-colors"
                         title="取消"
                       >
-                        <span className="text-xs">✓</span>
+                        <span className="text-xs">✕</span>
                       </button>
                     </div>
                   ) : (
@@ -547,9 +547,9 @@ export default function Settings() {
                        }}
                        className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
                      >
-                       {sourceStatuses[source.name]?.interval
-                         ? `姣?${sourceStatuses[source.name].interval} 鍒嗛挓`
-                         : '点击设置'}
+                        {sourceStatuses[source.name]?.interval
+                          ? `每 ${sourceStatuses[source.name].interval} 分钟`
+                          : '点击设置'}
                      </button>
                   )}
                 </div>
@@ -597,15 +597,15 @@ export default function Settings() {
               </label>
             </div>
           </div>
-          {/* 娉ㄥ唽寮€鍏?*/}
+          {/* 注册控制 */}
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">娉ㄥ唽鎺у埗</h2>
+                <h2 className="text-lg font-semibold text-gray-900">注册控制</h2>
                 <p className="text-sm text-gray-500 mt-1">
                   {registrationDisabled
                     ? '注册功能已关闭，新用户无法注册'
-                    : '娉ㄥ唽鍔熻兘宸插紑鍚紝浠讳綍浜洪兘鍙互娉ㄥ唽'}
+                    : '注册功能已开启，任何人都可以注册'}
                 </p>
               </div>
               <label className="flex items-center cursor-pointer min-h-[44px] min-w-[44px] justify-center">
