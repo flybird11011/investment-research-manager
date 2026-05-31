@@ -637,101 +637,120 @@ async function fetchFromCls(source: any) {
   try {
     console.log(`📡 [${source.name}] 正在抓取财联社电报快讯...`);
 
-    const apiUrl = 'https://www.cls.cn/nodeapi/updateTelegraphList';
     const cursor = getClsLookbackTimestamp(source.name);
-    // 用上次成功抓到的发布时间作为游标，带少量回看防止边界遗漏
     const timestamp = cursor.timestamp;
     console.log(`   🧭 CLS游标: ${cursor.reason}`);
 
-    // 构造请求参数
-    const params: Record<string, string> = {
-      app: 'CailianpressWeb',
-      os: 'web',
-      sv: '8.4.6',
-      rn: String(CLS_FETCH_LIMIT),
-      lastTime: timestamp,
-      hasFirstVipArticle: '0',
-      subscribedColumnIds: '',
+    const buildQueryString = (params: Array<[string, string]>) => {
+      const queryString = params
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+      const sha1Hash = crypto.createHash('sha1').update(queryString).digest('hex');
+      const sign = crypto.createHash('md5').update(sha1Hash).digest('hex');
+      return { queryString, sign };
     };
 
-    // 生成 sign：参数按 key 排序 → URL 编码 → SHA1 → MD5
-    const sortedKeys = Object.keys(params).sort();
-    const queryString = sortedKeys
-      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-      .join('&');
+    const requestFeed = async (apiUrl: string, params: Array<[string, string]>) => {
+      const { queryString, sign } = buildQueryString(params);
+      const response = await axios.get(`${apiUrl}?${queryString}&sign=${sign}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          'Referer': 'https://www.cls.cn/telegraph',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        timeout: 15000,
+      });
 
-    const sha1Hash = crypto.createHash('sha1').update(queryString).digest('hex');
-    const sign = crypto.createHash('md5').update(sha1Hash).digest('hex');
-    params.sign = sign;
+      logClsResponseSummary(response);
 
-    const response = await axios.get(apiUrl, {
-      params,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Referer': 'https://www.cls.cn/telegraph',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      timeout: 15000,
-    });
-
-    logClsResponseSummary(response);
-    const results: any[] = [];
-
-    // 检查API响应
-    if (!response.data || !response.data.data) {
-      console.log(`   ⚠️ API返回数据格式不正确`);
-      console.log(`   🔎 原始响应: ${JSON.stringify(response.data).slice(0, 500)}`);
-      return [];
-    }
-
-    const newsList = response.data?.data?.roll_data || [];
-    if (!Array.isArray(newsList) || newsList.length === 0) {
-      console.log(`   ⚠️ API返回数据为空（可能没有新快讯或接口字段变更）`);
-      console.log(`   🔎 data内容: ${JSON.stringify(response.data.data).slice(0, 500)}`);
-      return [];
-    }
-
-    console.log(`   📄 API返回 ${newsList.length} 条快讯`);
-
-    for (const item of newsList) {
-      const title = item?.title || item?.brief || '';
-      const content = item?.content || item?.brief || '';
-
-      if (!title && !content) continue;
-
-      // 使用标题或内容前80字作为标题
-      const displayTitle = title || content.substring(0, 80);
-      if (displayTitle.length < 5) continue;
-
-      // 构建新闻链接
-      const newsId = item?.id || item?.telegraph_id;
-      const link = newsId ? `https://www.cls.cn/telegraph/${newsId}` : source.url;
-
-      // 解析时间
-      let publishedAt = new Date().toISOString();
-      const ctime = item?.ctime || item?.created_at;
-      if (ctime) {
-        const date = new Date(parseInt(ctime) * 1000);
-        if (!isNaN(date.getTime())) {
-          publishedAt = date.toISOString();
-        }
+      if (!response.data || !response.data.data) {
+        console.log(`   ⚠️ API返回数据格式不正确`);
+        console.log(`   🔎 原始响应: ${JSON.stringify(response.data).slice(0, 500)}`);
+        return [];
       }
 
-      // 提取分类标签
-      const subject = item?.subject || '';
-      const category = detectCategory(displayTitle + ' ' + content + ' ' + subject);
+      const data = response.data.data;
+      const newsList = Array.isArray(data.roll_data)
+        ? data.roll_data
+        : Array.isArray(data.list)
+          ? data.list
+          : Array.isArray(data.items)
+            ? data.items
+            : Array.isArray(data.data)
+              ? data.data
+              : [];
 
-      results.push({
-        title: displayTitle.substring(0, 100),
-        summary: (content || title).substring(0, 200),
-        content: content || title,
-        source: source.name,
-        sourceUrl: link,
-        category: category,
-        publishedAt,
-      });
+      if (!Array.isArray(newsList) || newsList.length === 0) {
+        console.log(`   ⚠️ API返回数据为空（可能没有新快讯或接口字段变更）`);
+        console.log(`   🔎 data内容: ${JSON.stringify(data).slice(0, 500)}`);
+        return [];
+      }
+
+      console.log(`   📄 API返回 ${newsList.length} 条快讯`);
+
+      const results: any[] = [];
+      for (const item of newsList) {
+        const title = item?.title || item?.brief || '';
+        const content = item?.content || item?.brief || '';
+        if (!title && !content) continue;
+
+        const displayTitle = title || content.substring(0, 80);
+        if (displayTitle.length < 5) continue;
+
+        const newsId = item?.id || item?.telegraph_id;
+        const link = newsId ? `https://www.cls.cn/telegraph/${newsId}` : source.url;
+
+        let publishedAt = new Date().toISOString();
+        const ctime = item?.ctime || item?.created_at;
+        if (ctime) {
+          const date = new Date(parseInt(ctime) * 1000);
+          if (!isNaN(date.getTime())) {
+            publishedAt = date.toISOString();
+          }
+        }
+
+        const subject = item?.subject || '';
+        const category = detectCategory(displayTitle + ' ' + content + ' ' + subject);
+
+        results.push({
+          title: displayTitle.substring(0, 100),
+          summary: (content || title).substring(0, 200),
+          content: content || title,
+          source: source.name,
+          sourceUrl: link,
+          category,
+          publishedAt,
+        });
+      }
+
+      return results;
+    };
+
+    const modernParams: Array<[string, string]> = [
+      ['app', 'CailianpressWeb'],
+      ['last_time', timestamp],
+      ['os', 'web'],
+      ['rn', String(CLS_FETCH_LIMIT)],
+      ['sv', '7.7.5'],
+    ];
+
+    let results = await requestFeed('https://www.cls.cn/nodeapi/telegraphList', modernParams);
+    if (results.length === 0) {
+      console.log(`   🔁 现代参数未取到数据，尝试兼容旧接口`);
+      const legacyParams: Array<[string, string]> = [
+        ['app', 'CailianpressWeb'],
+        ['category', ''],
+        ['hasFirstVipArticle', '0'],
+        ['lastTime', timestamp],
+        ['os', 'web'],
+        ['refresh_type', '1'],
+        ['rn', String(CLS_FETCH_LIMIT)],
+        ['subscribedColumnIds', ''],
+        ['sv', '7.7.5'],
+      ];
+      results = await requestFeed('https://www.cls.cn/nodeapi/updateTelegraphList', legacyParams);
     }
 
     console.log(`   ✅ 成功解析 ${results.length} 条快讯`);

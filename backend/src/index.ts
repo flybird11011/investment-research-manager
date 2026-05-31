@@ -76,7 +76,7 @@ app.post('/api/crawler/update-source', async (req, res) => {
       return res.status(400).json({ error: '请提供sourceName参数' });
     }
     
-    await updateSource(sourceName);
+    await forceCrawl(sourceName);
     res.json({ 
       success: true, 
       message: `更新新闻源: ${sourceName}` 
