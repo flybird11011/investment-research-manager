@@ -35,7 +35,8 @@ const rssParser = new Parser({
 
 const CLS_LOOKBACK_OVERLAP_MS = 5 * 60 * 1000;
 const CLS_FALLBACK_WINDOW_MS = 60 * 60 * 1000;
-const CLS_FETCH_LIMIT = 100;
+// CLS returns an empty roll_data payload when rn is too large.
+const CLS_FETCH_LIMIT = 50;
 
 export function parseChinaLocalDateTime(value: string): string | null {
   const match = value.trim().match(
@@ -736,22 +737,7 @@ async function fetchFromCls(source: any) {
       ['sv', '7.7.5'],
     ];
 
-    let results = await requestFeed('https://www.cls.cn/nodeapi/telegraphList', modernParams);
-    if (results.length === 0) {
-      console.log(`   🔁 现代参数未取到数据，尝试兼容旧接口`);
-      const legacyParams: Array<[string, string]> = [
-        ['app', 'CailianpressWeb'],
-        ['category', ''],
-        ['hasFirstVipArticle', '0'],
-        ['lastTime', timestamp],
-        ['os', 'web'],
-        ['refresh_type', '1'],
-        ['rn', String(CLS_FETCH_LIMIT)],
-        ['subscribedColumnIds', ''],
-        ['sv', '7.7.5'],
-      ];
-      results = await requestFeed('https://www.cls.cn/nodeapi/updateTelegraphList', legacyParams);
-    }
+    const results = await requestFeed('https://www.cls.cn/v1/roll/get_roll_list', modernParams);
 
     console.log(`   ✅ 成功解析 ${results.length} 条快讯`);
     const latestPublishedAt = getLatestPublishedAt(results);
