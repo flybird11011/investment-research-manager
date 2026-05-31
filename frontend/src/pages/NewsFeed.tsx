@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, RefreshCw, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { newsApi, eventsApi } from '../lib/api'
 import { formatTime, truncateText, getCategoryBadgeClass } from '../lib/utils'
-import { speak, isSpeechSupported, unlockSpeechPlayback } from '../lib/speech'
+import { speak, unlockSpeechPlayback, getSpeechSettings, listenSpeechSettingsChanged } from '../lib/speech'
 
 interface NewsItem {
   id: number
@@ -55,10 +55,19 @@ export default function NewsFeed() {
 
   const categoryParam = searchParams.get('category') || '全部'
 
-  // 语音播报开关（从 localStorage 读取）
-  const speechEnabled = isSpeechSupported() && localStorage.getItem('speechEnabled') === 'true'
-  const speechReadAllNew = isSpeechSupported() && localStorage.getItem('speechReadAllNew') === 'true'
+  const [speechEnabled, setSpeechEnabled] = useState(() => getSpeechSettings().enabled)
+  const [speechReadAllNew, setSpeechReadAllNew] = useState(() => getSpeechSettings().readAllNew)
 
+  useEffect(() => {
+    const syncSpeechSettings = () => {
+      const settings = getSpeechSettings()
+      setSpeechEnabled(settings.enabled)
+      setSpeechReadAllNew(settings.readAllNew)
+    }
+
+    syncSpeechSettings()
+    return listenSpeechSettingsChanged(syncSpeechSettings)
+  }, [])
   const fetchEvents = useCallback(async (page: number, append: boolean = false) => {
     try {
       const category = selectedCategory === '全部' ? undefined : selectedCategory

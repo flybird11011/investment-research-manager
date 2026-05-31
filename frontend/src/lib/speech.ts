@@ -5,6 +5,31 @@ let speakRequestId = 0
 let audioUnlocked = false
 
 const TTS_VOICE = 'zh-CN-XiaoxiaoNeural'
+const SPEECH_SETTINGS_CHANGED_EVENT = 'speech-settings-changed'
+
+export function getSpeechSettings(): { enabled: boolean; readAllNew: boolean } {
+  return {
+    enabled: typeof window !== 'undefined' && localStorage.getItem('speechEnabled') === 'true',
+    readAllNew: typeof window !== 'undefined' && localStorage.getItem('speechReadAllNew') === 'true',
+  }
+}
+
+export function notifySpeechSettingsChanged(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(SPEECH_SETTINGS_CHANGED_EVENT))
+}
+
+export function listenSpeechSettingsChanged(handler: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+
+  const onChange = () => handler()
+  window.addEventListener(SPEECH_SETTINGS_CHANGED_EVENT, onChange)
+  window.addEventListener('storage', onChange)
+  return () => {
+    window.removeEventListener(SPEECH_SETTINGS_CHANGED_EVENT, onChange)
+    window.removeEventListener('storage', onChange)
+  }
+}
 
 export function isSpeechSupported(): boolean {
   return typeof window !== 'undefined' && typeof Audio !== 'undefined' && typeof fetch !== 'undefined'

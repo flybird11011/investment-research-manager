@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { newsApi } from '../lib/api'
 import { formatTime } from '../lib/utils'
-import { speak, isSpeechSupported } from '../lib/speech'
+import { speak, getSpeechSettings, listenSpeechSettingsChanged } from '../lib/speech'
 
 interface NewsItem {
   id: number
@@ -52,9 +52,19 @@ export default function FlashMode() {
   const lastNewsIdsRef = useRef<Set<number>>(new Set())
   const isFirstLoadRef = useRef(true)
 
-  const speechEnabled = isSpeechSupported() && localStorage.getItem('speechEnabled') === 'true'
-  const speechReadAllNew = isSpeechSupported() && localStorage.getItem('speechReadAllNew') === 'true'
+  const [speechEnabled, setSpeechEnabled] = useState(() => getSpeechSettings().enabled)
+  const [speechReadAllNew, setSpeechReadAllNew] = useState(() => getSpeechSettings().readAllNew)
 
+  useEffect(() => {
+    const syncSpeechSettings = () => {
+      const settings = getSpeechSettings()
+      setSpeechEnabled(settings.enabled)
+      setSpeechReadAllNew(settings.readAllNew)
+    }
+
+    syncSpeechSettings()
+    return listenSpeechSettingsChanged(syncSpeechSettings)
+  }, [])
   const fetchNews = useCallback(async (page: number, append: boolean = false) => {
     if (append) {
       setLoadingMore(true)

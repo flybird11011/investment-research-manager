@@ -3,7 +3,7 @@ import { Plus, Trash2, RefreshCw, Globe, Rss, Users, Shield, ShieldCheck, Clock,
 import { sourcesApi, crawlerApi } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import api from '../lib/api'
-import { isSpeechSupported, speak, initSpeech, unlockSpeechPlayback } from '../lib/speech'
+import { isSpeechSupported, speak, initSpeech, unlockSpeechPlayback, notifySpeechSettingsChanged } from '../lib/speech'
 
 interface NewsSource {
   id: number
@@ -67,10 +67,12 @@ export default function Settings() {
   // 保存语音设置到 localStorage
   useEffect(() => {
     localStorage.setItem('speechEnabled', speechEnabled.toString())
+    notifySpeechSettingsChanged()
   }, [speechEnabled])
 
   useEffect(() => {
     localStorage.setItem('speechReadAllNew', speechReadAllNew.toString())
+    notifySpeechSettingsChanged()
   }, [speechReadAllNew])
 
   // 测试语音
