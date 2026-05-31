@@ -1,7 +1,19 @@
 import { Router } from 'express';
-import { findAll, findWhere, create } from '../db/jsonDb';
+import { findAll } from '../db/jsonDb';
 
 const router = Router();
+
+function getNewsSortTime(item: any): number {
+  const candidates = [item.updatedAt, item.createdAt, item.publishedAt];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const time = new Date(candidate).getTime();
+    if (Number.isFinite(time) && time > 0) return time;
+  }
+
+  return item.id || 0;
+}
 
 // 获取资讯列表
 router.get('/', async (req, res) => {
@@ -13,7 +25,6 @@ router.get('/', async (req, res) => {
 
     let results = findAll<any>('news');
 
-    // 筛选
     if (category) {
       results = results.filter((item: any) => item.category === category);
     }
@@ -21,17 +32,14 @@ router.get('/', async (req, res) => {
       results = results.filter((item: any) => item.source === source);
     }
     if (stock) {
-      results = results.filter((item: any) => 
+      results = results.filter((item: any) =>
         item.relatedStocks && item.relatedStocks.includes(stock)
       );
     }
 
-    // 排序（按发布时间倒序）
-    results.sort((a: any, b: any) => 
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    // 优先按最近入库，其次按发布时间
+    results.sort((a: any, b: any) => getNewsSortTime(b) - getNewsSortTime(a));
 
-    // 分页
     const total = results.length;
     results = results.slice(offset, offset + limitNum);
 
@@ -47,7 +55,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 搜索资讯 - 必须放在 /:id 之前，否则会被 /:id 匹配
+// 搜索资讯
 router.get('/search', async (req, res) => {
   try {
     const { q, page = '1', limit = '20' } = req.query;
@@ -60,15 +68,13 @@ router.get('/search', async (req, res) => {
     }
 
     const keyword = (q as string).toLowerCase();
-    let results = findAll<any>('news').filter((item: any) => 
-      item.title.toLowerCase().includes(keyword) || 
+    let results = findAll<any>('news').filter((item: any) =>
+      item.title.toLowerCase().includes(keyword) ||
       (item.summary && item.summary.toLowerCase().includes(keyword))
     );
 
-    // 排序
-    results.sort((a: any, b: any) => 
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    // 优先按最近入库，其次按发布时间
+    results.sort((a: any, b: any) => getNewsSortTime(b) - getNewsSortTime(a));
 
     const total = results.length;
     results = results.slice(offset, offset + limitNum);
@@ -91,7 +97,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const results = findAll<any>('news');
     const item = results.find((n: any) => n.id === parseInt(id));
-    
+
     if (!item) {
       return res.status(404).json({ error: '资讯不存在' });
     }

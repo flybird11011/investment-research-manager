@@ -8,26 +8,33 @@ interface NewsItem {
   title: string
   source: string
   category: string
+  createdAt?: string
+  updatedAt?: string
   publishedAt: string
 }
 
 const PAGE_SIZE = 30
 const SPEECH_DEFAULT_MAX_ITEMS = 10
 
-function getPublishedTime(item: NewsItem): number {
-  const time = new Date(item.publishedAt).getTime()
-  return Number.isNaN(time) ? 0 : time
+function getNewsSortTime(item: NewsItem): number {
+  const candidates = [item.updatedAt, item.createdAt, item.publishedAt]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const time = new Date(candidate).getTime()
+    if (!Number.isNaN(time) && time > 0) return time
+  }
+  return item.id || 0
 }
 
-function sortNewsByPublishedAtDesc(items: NewsItem[]): NewsItem[] {
+function sortNewsByRecentArrivalDesc(items: NewsItem[]): NewsItem[] {
   return [...items].sort((a, b) => {
-    const timeDiff = getPublishedTime(b) - getPublishedTime(a)
+    const timeDiff = getNewsSortTime(b) - getNewsSortTime(a)
     if (timeDiff !== 0) return timeDiff
     return b.id - a.id
   })
 }
 
-function mergeNewsByPublishedAtDesc(current: NewsItem[], incoming: NewsItem[]): NewsItem[] {
+function mergeNewsByRecentArrivalDesc(current: NewsItem[], incoming: NewsItem[]): NewsItem[] {
   const byId = new Map<number, NewsItem>()
 
   for (const item of current) {
@@ -37,7 +44,7 @@ function mergeNewsByPublishedAtDesc(current: NewsItem[], incoming: NewsItem[]): 
     byId.set(item.id, item)
   }
 
-  return sortNewsByPublishedAtDesc(Array.from(byId.values()))
+  return sortNewsByRecentArrivalDesc(Array.from(byId.values()))
 }
 
 export default function FlashMode() {
@@ -94,8 +101,8 @@ export default function FlashMode() {
 
       setNews(prev => {
         return append
-          ? mergeNewsByPublishedAtDesc(prev, items)
-          : sortNewsByPublishedAtDesc(items)
+          ? mergeNewsByRecentArrivalDesc(prev, items)
+          : sortNewsByRecentArrivalDesc(items)
       })
 
       setTotalCount(total)
@@ -134,7 +141,7 @@ export default function FlashMode() {
         }
         lastNewsIdsRef.current = new Set(newItems.map((item: NewsItem) => item.id))
         isFirstLoadRef.current = false
-        setNews(prev => mergeNewsByPublishedAtDesc(prev, newItems))
+        setNews(prev => mergeNewsByRecentArrivalDesc(prev, newItems))
         setTotalCount(res.data.total)
       } catch (error) {
         console.error('自动刷新失败:', error)
