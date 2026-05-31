@@ -19,6 +19,7 @@ interface SourceStatus {
   lastErrorTime?: string;     // 最后错误时间
   updateInterval: number;     // 更新间隔（分钟）
   isActive: boolean;          // 是否活跃
+  clsLastPublishedAt?: string; // CLS 上次抓到的最新发布时间
 }
 
 // 默认更新间隔（分钟）
@@ -46,6 +47,7 @@ export function getSourceStatus(sourceName: string, sourceUrl: string): SourceSt
       totalNewsCount: 0,
       updateInterval: DEFAULT_UPDATE_INTERVAL,
       isActive: true,
+      clsLastPublishedAt: undefined,
     };
     
     const created = create('sourceStatus', newStatus);
@@ -209,6 +211,7 @@ export function resetSourceStatus(sourceName: string): void {
       totalNewsCount: 0,
       lastError: undefined,
       lastErrorTime: undefined,
+      clsLastPublishedAt: undefined,
     });
   }
 }

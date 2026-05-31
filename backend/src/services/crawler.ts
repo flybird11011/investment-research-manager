@@ -13,6 +13,7 @@ import {
 } from '../utils/deduplication';
 import {
   getSourceStatus,
+  updateSourceStatus,
   recordFetchSuccess,
   recordFetchError,
   shouldUpdate,
@@ -31,6 +32,10 @@ const rssParser = new Parser({
     ],
   },
 });
+
+const CLS_LOOKBACK_OVERLAP_MS = 5 * 60 * 1000;
+const CLS_FALLBACK_WINDOW_MS = 60 * 60 * 1000;
+const CLS_FETCH_LIMIT = 100;
 
 export function parseChinaLocalDateTime(value: string): string | null {
   const match = value.trim().match(
@@ -553,20 +558,97 @@ async function fetchFromGuzhang(source: any) {
 }
 
 // ============ 财联社电报快讯抓取 ============
+function getLatestStoredClsPublishedAt(sourceName: string): string | null {
+  const clsNews = findAll<any>('news')
+    .filter((item: any) => item.source === sourceName && item.publishedAt);
+
+  if (clsNews.length === 0) return null;
+
+  clsNews.sort(
+    (a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
+
+  return clsNews[0]?.publishedAt || null;
+}
+
+function getClsLookbackTimestamp(sourceName: string): { timestamp: string; reason: string } {
+  const status = getSourceStatus(sourceName, 'https://www.cls.cn/telegraph') as any;
+  const storedPublishedAt = status?.clsLastPublishedAt || getLatestStoredClsPublishedAt(sourceName);
+  const storedTime = storedPublishedAt ? new Date(storedPublishedAt).getTime() : NaN;
+
+  if (Number.isFinite(storedTime)) {
+    const lookback = Math.max(0, storedTime - CLS_LOOKBACK_OVERLAP_MS);
+    return {
+      timestamp: Math.floor(lookback / 1000).toString(),
+      reason: `基于上次成功发布时间 ${new Date(storedTime).toLocaleString()} 回看 ${Math.round(CLS_LOOKBACK_OVERLAP_MS / 60000)} 分钟`,
+    };
+  }
+
+  const fallbackTime = Date.now() - CLS_FALLBACK_WINDOW_MS;
+  return {
+    timestamp: Math.floor(fallbackTime / 1000).toString(),
+    reason: `未找到历史游标，回看最近 ${Math.round(CLS_FALLBACK_WINDOW_MS / 60000)} 分钟`,
+  };
+}
+
+function getLatestPublishedAt(newsItems: any[]): string | null {
+  let latestTime = -1;
+  let latestPublishedAt: string | null = null;
+
+  for (const item of newsItems) {
+    const publishedAt = item?.publishedAt;
+    if (!publishedAt) continue;
+
+    const time = new Date(publishedAt).getTime();
+    if (Number.isNaN(time)) continue;
+
+    if (time > latestTime) {
+      latestTime = time;
+      latestPublishedAt = publishedAt;
+    }
+  }
+
+  return latestPublishedAt;
+}
+
+function logClsResponseSummary(response: any): void {
+  const topLevelKeys = response?.data && typeof response.data === 'object'
+    ? Object.keys(response.data)
+    : [];
+  const dataKeys = response?.data?.data && typeof response.data.data === 'object'
+    ? Object.keys(response.data.data)
+    : [];
+  console.log(`   📦 响应状态: ${response?.status ?? 'unknown'}`);
+  console.log(`   📦 响应顶层键: ${topLevelKeys.length > 0 ? topLevelKeys.join(', ') : '无'}`);
+  console.log(`   📦 data键: ${dataKeys.length > 0 ? dataKeys.join(', ') : '无'}`);
+}
+
+function formatFetchError(error: any): string {
+  const parts = [
+    error?.message,
+    error?.code ? `code=${error.code}` : null,
+    error?.response?.status ? `status=${error.response.status}` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(' | ') : '未知错误';
+}
+
 async function fetchFromCls(source: any) {
   try {
     console.log(`📡 [${source.name}] 正在抓取财联社电报快讯...`);
 
     const apiUrl = 'https://www.cls.cn/nodeapi/updateTelegraphList';
-    // 用过去1小时的时间戳，获取最近1小时的快讯
-    const timestamp = (Math.floor(Date.now() / 1000) - 3600).toString();
+    const cursor = getClsLookbackTimestamp(source.name);
+    // 用上次成功抓到的发布时间作为游标，带少量回看防止边界遗漏
+    const timestamp = cursor.timestamp;
+    console.log(`   🧭 CLS游标: ${cursor.reason}`);
 
     // 构造请求参数
     const params: Record<string, string> = {
       app: 'CailianpressWeb',
       os: 'web',
       sv: '8.4.6',
-      rn: '30',
+      rn: String(CLS_FETCH_LIMIT),
       lastTime: timestamp,
       hasFirstVipArticle: '0',
       subscribedColumnIds: '',
@@ -594,17 +676,20 @@ async function fetchFromCls(source: any) {
       timeout: 15000,
     });
 
+    logClsResponseSummary(response);
     const results: any[] = [];
 
     // 检查API响应
     if (!response.data || !response.data.data) {
       console.log(`   ⚠️ API返回数据格式不正确`);
+      console.log(`   🔎 原始响应: ${JSON.stringify(response.data).slice(0, 500)}`);
       return [];
     }
 
     const newsList = response.data?.data?.roll_data || [];
     if (!Array.isArray(newsList) || newsList.length === 0) {
-      console.log(`   ⚠️ API返回数据为空（可能没有新快讯）`);
+      console.log(`   ⚠️ API返回数据为空（可能没有新快讯或接口字段变更）`);
+      console.log(`   🔎 data内容: ${JSON.stringify(response.data.data).slice(0, 500)}`);
       return [];
     }
 
@@ -650,11 +735,19 @@ async function fetchFromCls(source: any) {
     }
 
     console.log(`   ✅ 成功解析 ${results.length} 条快讯`);
+    const latestPublishedAt = getLatestPublishedAt(results);
+    if (latestPublishedAt) {
+      updateSourceStatus(source.name, {
+        clsLastPublishedAt: latestPublishedAt,
+      });
+      console.log(`   🧭 更新CLS游标: ${latestPublishedAt}`);
+    }
     return results.slice(0, 50);
   } catch (error: any) {
-    console.error(`❌ [${source.name}] 财联社抓取失败:`, error.message);
+    console.error(`❌ [${source.name}] 财联社抓取失败:`, formatFetchError(error));
     if (error.response) {
       console.error(`   响应状态: ${error.response.status}`);
+      console.error(`   响应内容: ${JSON.stringify(error.response.data).slice(0, 500)}`);
     }
     return [];
   }
