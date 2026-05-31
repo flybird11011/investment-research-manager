@@ -8,7 +8,7 @@ const TTS_CACHE_DIR = path.join(DATA_DIR, 'tts-cache');
 const EDGE_TTS_VOICE = (process.env.TTS_VOICE as string | undefined) || 'zh-CN-XiaoxiaoNeural';
 const EDGE_TTS_RATE = (process.env.TTS_RATE as string | undefined) || '+0%';
 const MAX_INPUT_LENGTH = 1500;
-const EDGE_TTS_SCRIPT = path.resolve(process.cwd(), 'src', 'scripts', 'edge_tts.py');
+const EDGE_TTS_SCRIPT = path.resolve(process.cwd(), 'src', 'scripts', 'edge_tts_runner.py');
 
 if (!fs.existsSync(TTS_CACHE_DIR)) {
   fs.mkdirSync(TTS_CACHE_DIR, { recursive: true });
@@ -109,4 +109,3 @@ export async function getSpeechAudioFile(options: {
     inFlightRequests.delete(cacheKey);
   }
 }
-
