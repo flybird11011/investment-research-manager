@@ -636,7 +636,7 @@ function formatFetchError(error: any): string {
 
 async function fetchFromCls(source: any) {
   try {
-    console.log(`📡 [${source.name}] 正在抓取财联社电报快讯...`);
+    console.log(`📗 [${source.name}] 正在抓取财联社电报快讯...`);
 
     const cursor = getClsLookbackTimestamp(source.name);
     const timestamp = cursor.timestamp;
@@ -651,24 +651,20 @@ async function fetchFromCls(source: any) {
       return { queryString, sign };
     };
 
-    const requestFeed = async (apiUrl: string, params: Array<[string, string]>) => {
-      const { queryString, sign } = buildQueryString(params);
-      const response = await axios.get(`${apiUrl}?${queryString}&sign=${sign}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/javascript, */*; q=0.01',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          'Referer': 'https://www.cls.cn/telegraph',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        timeout: 15000,
-      });
+    const clsHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/javascript, */*; q=0.01',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Referer': 'https://www.cls.cn/telegraph',
+      'X-Requested-With': 'XMLHttpRequest',
+    };
 
+    const parseClsNewsResponse = (response: any, sourceLabel: string) => {
       logClsResponseSummary(response);
 
       if (!response.data || !response.data.data) {
-        console.log(`   ⚠️ API返回数据格式不正确`);
-        console.log(`   🔎 原始响应: ${JSON.stringify(response.data).slice(0, 500)}`);
+        console.log(`   ⬇️ ${sourceLabel} 返回数据格式不正确`);
+        console.log(`   🔍 原始响应: ${JSON.stringify(response.data).slice(0, 500)}`);
         return [];
       }
 
@@ -684,12 +680,12 @@ async function fetchFromCls(source: any) {
               : [];
 
       if (!Array.isArray(newsList) || newsList.length === 0) {
-        console.log(`   ⚠️ API返回数据为空（可能没有新快讯或接口字段变更）`);
-        console.log(`   🔎 data内容: ${JSON.stringify(data).slice(0, 500)}`);
+        console.log(`   ⬇️ ${sourceLabel} 返回数据为空（可能没有新快讯或接口字段变更）`);
+        console.log(`   🔍 data内容: ${JSON.stringify(data).slice(0, 500)}`);
         return [];
       }
 
-      console.log(`   📄 API返回 ${newsList.length} 条快讯`);
+      console.log(`   📄 ${sourceLabel} 返回 ${newsList.length} 条快讯`);
 
       const results: any[] = [];
       for (const item of newsList) {
@@ -729,15 +725,50 @@ async function fetchFromCls(source: any) {
       return results;
     };
 
-    const modernParams: Array<[string, string]> = [
-      ['app', 'CailianpressWeb'],
-      ['last_time', timestamp],
-      ['os', 'web'],
-      ['rn', String(CLS_FETCH_LIMIT)],
-      ['sv', '7.7.5'],
-    ];
+    const requestFeed = async (apiUrl: string, params: Array<[string, string]>, includeSign = true, sourceLabel = apiUrl) => {
+      const { queryString, sign } = buildQueryString(params);
+      const url = includeSign ? `${apiUrl}?${queryString}&sign=${sign}` : `${apiUrl}?${queryString}`;
+      const response = await axios.get(url, {
+        headers: clsHeaders,
+        timeout: 15000,
+      });
 
-    const results = await requestFeed('https://www.cls.cn/v1/roll/get_roll_list', modernParams);
+      return parseClsNewsResponse(response, sourceLabel);
+    };
+
+    const cachedResults = await requestFeed(
+      'https://www.cls.cn/api/cache',
+      [
+        ['lastTime', timestamp],
+        ['name', 'telegraph'],
+      ],
+      false,
+      'https://www.cls.cn/api/cache'
+    );
+
+    let results = cachedResults;
+    if (results.length < CLS_FETCH_LIMIT) {
+      const nextLastTime = results.length > 0
+        ? Math.floor((new Date(results[results.length - 1].publishedAt).getTime() || Date.now()) / 1000).toString()
+        : timestamp;
+      const remaining = Math.max(1, CLS_FETCH_LIMIT - results.length);
+      const rollResults = await requestFeed(
+        'https://www.cls.cn/v1/roll/get_roll_list',
+        [
+          ['app', 'CailianpressWeb'],
+          ['refresh_type', '1'],
+          ['last_time', nextLastTime],
+          ['os', 'web'],
+          ['rn', String(remaining)],
+          ['sv', '7.7.5'],
+        ],
+        true,
+        'https://www.cls.cn/v1/roll/get_roll_list'
+      );
+      if (rollResults.length > 0) {
+        results = results.concat(rollResults);
+      }
+    }
 
     console.log(`   ✅ 成功解析 ${results.length} 条快讯`);
     const latestPublishedAt = getLatestPublishedAt(results);
@@ -747,7 +778,7 @@ async function fetchFromCls(source: any) {
       });
       console.log(`   🧭 更新CLS游标: ${latestPublishedAt}`);
     }
-    return results.slice(0, 50);
+    return results.slice(0, CLS_FETCH_LIMIT);
   } catch (error: any) {
     console.error(`❌ [${source.name}] 财联社抓取失败:`, formatFetchError(error));
     if (error.response) {
@@ -757,8 +788,6 @@ async function fetchFromCls(source: any) {
     return [];
   }
 }
-
-// ============ 华尔街见闻7x24快讯抓取 ============
 async function fetchFromWallstreetcn(source: any) {
   try {
     console.log(`📡 [${source.name}] 正在抓取华尔街见闻7x24快讯...`);
