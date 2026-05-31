@@ -48,6 +48,9 @@ export default function Settings() {
   const [speechEnabled, setSpeechEnabled] = useState<boolean>(() => {
     return localStorage.getItem('speechEnabled') === 'true'
   })
+  const [speechReadAllNew, setSpeechReadAllNew] = useState<boolean>(() => {
+    return localStorage.getItem('speechReadAllNew') === 'true'
+  })
   const speechSupported = isSpeechSupported()
 
   useEffect(() => {
@@ -65,6 +68,10 @@ export default function Settings() {
   useEffect(() => {
     localStorage.setItem('speechEnabled', speechEnabled.toString())
   }, [speechEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('speechReadAllNew', speechReadAllNew.toString())
+  }, [speechReadAllNew])
 
   // 测试语音
   const handleTestSpeech = () => {
@@ -313,34 +320,52 @@ export default function Settings() {
                   <div>
                     <h3 className="font-medium text-gray-900">语音播报</h3>
                     <p className="text-sm text-gray-500">
-                      {speechEnabled ? '新新闻刷新时自动朗读标题' : '已关闭'}
+                      {speechEnabled
+                        ? speechReadAllNew
+                          ? '新新闻刷新时朗读全部新增标题'
+                          : '新新闻刷新时默认朗读前 10 条标题'
+                        : '已关闭'}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center space-x-2">
+                    {speechEnabled && (
+                      <button
+                        onClick={handleTestSpeech}
+                        className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      >
+                        测试
+                      </button>
+                    )}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={speechEnabled}
+                        onChange={(e) => {
+                          const enabled = e.target.checked
+                          if (enabled) {
+                            unlockSpeechPlayback()
+                          }
+                          setSpeechEnabled(enabled)
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
                   {speechEnabled && (
-                    <button
-                      onClick={handleTestSpeech}
-                      className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    >
-                      测试
-                    </button>
+                    <label className="flex items-center justify-end gap-2 text-sm text-gray-600 cursor-pointer">
+                      <span>全部新增</span>
+                      <input
+                        type="checkbox"
+                        checked={speechReadAllNew}
+                        onChange={(e) => setSpeechReadAllNew(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
                   )}
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={speechEnabled}
-                      onChange={(e) => {
-                        const enabled = e.target.checked
-                        if (enabled) {
-                          unlockSpeechPlayback()
-                        }
-                        setSpeechEnabled(enabled)
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
                 </div>
               </div>
             </div>

@@ -32,6 +32,7 @@ interface EventItem {
 const categories = ['全部', '股票', '基金', '宏观', '行业', '其他']
 const PAGE_SIZE = 20
 const SPEECH_REFRESH_INTERVAL_MS = 60 * 1000
+const SPEECH_DEFAULT_MAX_ITEMS = 10
 
 export default function NewsFeed() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -56,6 +57,7 @@ export default function NewsFeed() {
 
   // 语音播报开关（从 localStorage 读取）
   const speechEnabled = isSpeechSupported() && localStorage.getItem('speechEnabled') === 'true'
+  const speechReadAllNew = isSpeechSupported() && localStorage.getItem('speechReadAllNew') === 'true'
 
   const fetchEvents = useCallback(async (page: number, append: boolean = false) => {
     try {
@@ -84,8 +86,11 @@ export default function NewsFeed() {
       if (!append && !isFirstLoadRef.current && speechEnabled && items.length > 0) {
         const newItems = items.filter((item: NewsItem) => !lastNewsIdsRef.current.has(item.id))
         if (newItems.length > 0) {
-          // 朗读最新的 3 条新闻标题
-          const titlesToSpeak = newItems.slice(0, 3).map((item: NewsItem) => item.title)
+          // 默认朗读最新的 10 条；开启“全部新增”时朗读全部
+          const titlesToSpeak = (speechReadAllNew
+            ? newItems
+            : newItems.slice(0, SPEECH_DEFAULT_MAX_ITEMS)
+          ).map((item: NewsItem) => item.title)
           speak(titlesToSpeak.join('。'))
         }
       }
@@ -107,7 +112,7 @@ export default function NewsFeed() {
     } catch (error) {
       console.error('获取资讯失败:', error)
     }
-  }, [selectedCategory, speechEnabled])
+  }, [selectedCategory, speechEnabled, speechReadAllNew])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
